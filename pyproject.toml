@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-kontinuum-monitor"
+version = "0.1.0"
+authors = [{name = "Chance-Konstruktion", email = "introareback@gmail.com"}]
+description = "Anomaly / novelty monitor for agent action streams, built on kontinuum-core"
+readme = "README.md"
+# Core is AGPL-3.0 and this package imports it; the copyleft/network
+# obligations propagate, so this repo is AGPL-3.0 too (SPEC.md §5.2).
+license = {text = "AGPL-3.0"}
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    # get_diagnostics() is hasattr-guarded, so >=0.6.0 is enough even on a
+    # PyPI build that predates core PR #35 (SPEC.md §5.1).
+    "kontinuum-core>=0.6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.urls]
+Homepage = "https://github.com/Chance-Konstruktion/ai-kontinuum-anomaly-montior"
+Issues = "https://github.com/Chance-Konstruktion/ai-kontinuum-anomaly-montior/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ai_kontinuum_monitor*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
