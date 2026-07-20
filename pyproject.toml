@@ -34,6 +34,9 @@ Issues = "https://github.com/Chance-Konstruktion/ai-kontinuum-anomaly-montior/is
 where = ["."]
 include = ["ai_kontinuum_monitor*"]
 
+[tool.setuptools.package-data]
+ai_kontinuum_monitor = ["py.typed"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]

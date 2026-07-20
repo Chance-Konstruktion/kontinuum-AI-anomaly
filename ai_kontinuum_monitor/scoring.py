@@ -206,10 +206,19 @@ class CompositeStrategy:
         is_anomaly = any(flags) if self.mode == "or" else all(flags)
         scores = [p.score for p in parts]
         score = max(scores) if self.mode == "or" else min(scores)
+        # Merge reasons, keeping each distinct underlying reason once (several
+        # strategies flagging "never-seen action" shouldn't repeat it), but
+        # tagging it with the first strategy that raised it.
         reasons: List[str] = []
+        seen_reasons: set[str] = set()
         for p in parts:
-            if p.is_anomaly:
-                reasons.extend(f"[{p.strategy}] {r}" for r in p.reasons)
+            if not p.is_anomaly:
+                continue
+            for r in p.reasons:
+                if r in seen_reasons:
+                    continue
+                seen_reasons.add(r)
+                reasons.append(f"[{p.strategy}] {r}")
         base = parts[0]
         return AnomalyScore(
             action=base.action,

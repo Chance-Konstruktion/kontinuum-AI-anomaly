@@ -50,6 +50,17 @@ def test_history_persistence_roundtrip(tmp_path):
     assert h2.records[0].action == "a"
 
 
+def test_history_autosave_off_defers_write(tmp_path):
+    path = str(tmp_path / "hist.json")
+    h = AnomalyHistory(persist_path=path, autosave=False)
+    h.record(AnomalyRecord.from_score(_score("a")))
+    # Nothing written yet.
+    assert not __import__("os").path.exists(path)
+    h.save()
+    h2 = AnomalyHistory(persist_path=path)
+    assert len(h2.records) == 1
+
+
 def test_history_max_records_evicts_oldest():
     h = AnomalyHistory(max_records=3)
     for i in range(5):

@@ -67,19 +67,25 @@ class AnomalyHistory:
     """An append-only, optionally file-backed ledger of anomalies.
 
     Args:
-        persist_path: If given, the ledger is loaded on construction and
-            :meth:`save` (called automatically by :meth:`record`) writes back.
+        persist_path: If given, the ledger is loaded on construction and (when
+            ``autosave`` is on) written back on every :meth:`record`.
         max_records: Cap on retained records (oldest evicted); ``None`` = keep
             all.
+        autosave: Persist on every ``record``. Convenient, but an O(n) rewrite
+            per anomaly — turn it off for high-volume streams and call
+            :meth:`save` yourself (e.g. from ``AnomalyWatch.save``). Anomalies
+            are rare by design, so it defaults on.
     """
 
     def __init__(
         self,
         persist_path: Optional[str] = None,
         max_records: Optional[int] = 10_000,
+        autosave: bool = True,
     ):
         self.persist_path = persist_path
         self.max_records = max_records
+        self.autosave = autosave
         self.records: List[AnomalyRecord] = []
         if persist_path and os.path.exists(persist_path):
             self._load(persist_path)
@@ -88,7 +94,7 @@ class AnomalyHistory:
         self.records.append(rec)
         if self.max_records is not None and len(self.records) > self.max_records:
             self.records = self.records[-self.max_records :]
-        if self.persist_path:
+        if self.persist_path and self.autosave:
             self.save()
         return rec
 

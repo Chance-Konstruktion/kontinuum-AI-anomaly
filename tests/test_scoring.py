@@ -53,6 +53,14 @@ def test_composite_or_merges_reasons():
     assert any("novelty" in x for x in r.reasons)
 
 
+def test_composite_dedupes_shared_reason():
+    """Two strategies both reporting 'never-seen action' collapse to one line."""
+    c = CompositeStrategy([NoveltyStrategy(), AdaptiveThresholdStrategy()], mode="or")
+    r = c.evaluate(_obs("a", 0.9, True))
+    never_seen = [x for x in r.reasons if "never-seen action" in x]
+    assert len(never_seen) == 1
+
+
 def test_composite_and_requires_all():
     c = CompositeStrategy([NoveltyStrategy(), AdaptiveThresholdStrategy()], mode="and")
     # Novel but adaptive is in warmup → novelty True, adaptive True (novel path).

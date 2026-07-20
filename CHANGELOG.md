@@ -38,6 +38,15 @@ a thin, additive layer over `kontinuum-core` (core stays untouched).
   dashboard, and the SPEC §4 acceptance criterion.
 - `docs/USAGE.md` with a minimal openclaw example.
 
+### Polish
+
+- `CompositeStrategy` now dedupes shared reasons, so a novel action reports
+  `never-seen action` once instead of once per strategy.
+- `AnomalyHistory` gained an `autosave` flag (default on); turn it off for
+  high-volume streams to skip the O(n) rewrite per anomaly and persist via
+  `save()` / `AnomalyWatch.save()`.
+- Ships `py.typed` — the package is distributed as typed.
+
 ### Notes
 
 - Licensed **AGPL-3.0**, deliberately, because core is AGPL-3.0 and this package
