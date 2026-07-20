@@ -1,0 +1,16 @@
+GNU AFFERO GENERAL PUBLIC LICENSE
+Version 3, 19 November 2007
+
+Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
+Everyone is permitted to copy and distribute verbatim copies
+of this license document, but changing it is not allowed.
+
+This repository uses the GNU Affero General Public License v3.0.
+
+It imports kontinuum-core, which is AGPL-3.0; the copyleft and network-use
+obligations propagate to this package, so it is licensed AGPL-3.0 as well
+(see SPEC.md §5.2). This is a deliberate choice, not a default. Not legal
+advice.
+
+For the full license text, see:
+https://www.gnu.org/licenses/agpl-3.0.txt
