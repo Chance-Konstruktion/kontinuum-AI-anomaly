@@ -62,6 +62,35 @@ def test_sequence_needs_context_before_judging():
     assert not res.is_anomaly
 
 
+def test_sequence_flags_rare_known_transition_at_probability_boundary():
+    strat = SequenceStrategy(min_context=10, min_prob=0.1)
+    for _ in range(9):
+        strat.evaluate(_obs("a"))
+        strat.evaluate(_obs("b"))
+    strat.evaluate(_obs("a"))
+    strat.evaluate(_obs("c"))
+
+    strat.evaluate(_obs("a"))
+    rare = strat.evaluate(_obs("c"))
+
+    assert rare.is_anomaly
+    assert rare.score == 0.9
+    assert any("rare transition" in reason for reason in rare.reasons)
+
+
+def test_sequence_leaves_novel_actions_to_novelty_strategy():
+    strat = SequenceStrategy(min_context=3, min_prob=0.0)
+    for _ in range(5):
+        strat.evaluate(_obs("a"))
+        strat.evaluate(_obs("b"))
+
+    strat.evaluate(_obs("a"))
+    result = strat.evaluate(_obs("brand_new", novel=True, surprise=0.95))
+
+    assert result.is_anomaly is False
+    assert result.reasons == []
+
+
 def test_sequence_aware_strategy_factory():
     strat = sequence_aware_strategy()
     names = {s.name for s in strat.strategies}
