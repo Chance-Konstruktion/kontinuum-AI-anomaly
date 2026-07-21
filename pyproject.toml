@@ -27,8 +27,8 @@ dependencies = [
 dev = ["pytest>=7"]
 
 [project.urls]
-Homepage = "https://github.com/Chance-Konstruktion/ai-kontinuum-anomaly-montior"
-Issues = "https://github.com/Chance-Konstruktion/ai-kontinuum-anomaly-montior/issues"
+Homepage = "https://github.com/Chance-Konstruktion/kontinuum-AI-anomaly"
+Issues = "https://github.com/Chance-Konstruktion/kontinuum-AI-anomaly/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
