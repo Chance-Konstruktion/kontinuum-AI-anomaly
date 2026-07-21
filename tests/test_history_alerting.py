@@ -115,9 +115,28 @@ def test_dashboard_renders_self_contained_html():
     html = render_dashboard(h, days=7)
     assert html.startswith("<!doctype html>")
     assert "deploy" in html
-    # Self-contained: no external asset references.
+    # Self-contained: no external asset references (inline <script> is fine).
     assert "http://" not in html and "https://" not in html
-    assert "<script" not in html
+    assert "src=" not in html and "<link" not in html
+
+
+def test_dashboard_filter_and_metric_controls():
+    h = AnomalyHistory()
+    h.record(AnomalyRecord.from_score(_score("deploy")))
+    html = render_dashboard(
+        h,
+        days=7,
+        metrics={
+            "learning_progress_pct": 42.0,
+            "surprise_trend": 0.12,
+            "mean_surprise": 0.55,
+        },
+    )
+    # Interactive filter controls are present and inline.
+    assert 'id="q"' in html and 'id="kind"' in html
+    assert "data-action=" in html and "data-kind=" in html
+    # Metric cards surfaced.
+    assert "learning progress" in html and "surprise trend" in html
 
 
 def test_dashboard_empty_window():

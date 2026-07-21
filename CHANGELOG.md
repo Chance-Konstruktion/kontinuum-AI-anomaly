@@ -4,6 +4,34 @@ All notable changes to `ai-kontinuum-monitor` are documented here. The format
 follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+Constructive-improvement pass — addresses feedback on threshold latency,
+missing run-wide metrics, dashboard interactivity, and clock configurability.
+All changes are additive and backward-compatible; existing call sites keep
+their behaviour unless they opt into the new parameters.
+
+### Added
+
+- **Run-wide metrics** — `AnomalyScorer.metrics()` (and pass-through
+  `AnomalyWatch.metrics()`) report `learning_progress` / `learning_progress_pct`
+  (event volume toward core's maturity threshold, SPEC §5.4) and a signed
+  `surprise_trend` (recent-half mean vs. older-half mean — positive = drifting
+  more surprising). `stream_stats()` now also carries a per-stream
+  `surprise_trend`.
+- **Earlier adaptive engagement** — `AdaptiveThresholdStrategy` gained an
+  `early_warmup` window (default 20): a *provisional*, deliberately widened
+  per-stream test runs on partial history so short or very stable streams react
+  before the full 100-sample warmup instead of staying blind. Set
+  `early_warmup=None` to keep the previous fully-conservative behaviour.
+- **Interactive dashboard** — `render_dashboard()` timeline is now filterable
+  (inline search box + novel/outlier toggle, self-contained inline JS, still no
+  external assets) and can render learning-progress / surprise-trend / mean
+  cards when passed the optional `metrics=` dict.
+- **Configurable virtual clock** — `AgentMonitor(step_seconds=…)` lets callers
+  widen event spacing for genuinely high-frequency replays; clamped to the
+  burst-safe default so it can't reintroduce silent drops (SPEC §5.5).
+
 ## [0.1.0] - 2026-07-20
 
 Initial release: an anomaly / novelty monitor for agent action streams, built as

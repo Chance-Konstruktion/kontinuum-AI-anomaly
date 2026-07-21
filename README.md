@@ -57,8 +57,15 @@ watch.save()
 * **Sequence / order anomalies are weak on short runs.** Core stays in
   `cold_start` under 100 events and its raw per-event `anomaly` flag is jittery
   below a few hundred events — the scoring layer's default is therefore
-  novelty-first, with the per-stream adaptive test engaging only once a stream
-  has enough history (~100 samples).
+  novelty-first. The per-stream adaptive test reaches full strength once a
+  stream has ~100 samples, but a **provisional, widened** early test engages
+  from ~20 samples so short or very stable streams still react to a clear spike
+  (tune or disable via `AdaptiveThresholdStrategy(early_warmup=…)`).
+
+Run-wide metrics — `watch.metrics()` reports `learning_progress_pct` and a
+signed `surprise_trend` — are available for dashboards and health checks, and
+`render_dashboard(..., metrics=watch.metrics())` surfaces them with a filterable
+timeline.
 * This is an **observer, not training** — it never changes the agent's own LLM.
 
 ## License

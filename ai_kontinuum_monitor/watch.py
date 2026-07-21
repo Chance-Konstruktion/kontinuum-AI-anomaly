@@ -79,6 +79,10 @@ class AnomalyWatch:
     def stream_stats(self) -> Dict[str, Dict[str, float]]:
         return self.scorer.stream_stats()
 
+    def metrics(self) -> Dict[str, Any]:
+        """Run-wide metrics (learning progress %, surprise trend, anomaly rate)."""
+        return self.scorer.metrics()
+
     def recent_anomalies(self, days: float = 7.0) -> List[AnomalyRecord]:
         return self.history.recent(days)
 
