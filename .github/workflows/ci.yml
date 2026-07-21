@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: py${{ matrix.python-version }} · core ${{ matrix.core-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        # Two core versions on purpose: 0.6.0 predates get_diagnostics() and so
+        # exercises the hasattr-guard / graceful-degradation path, while 0.6.2 is
+        # the modern path this package pins. The version-matrix skew is exactly
+        # what broke releases before there was CI (SPEC.md §5.1) — this keeps
+        # both paths permanently green.
+        core-version: ["0.6.0", "0.6.2"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # setuptools-scm derives the version from tags/history.
+          fetch-depth: 0
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package + test deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[dev]"
+
+      - name: Pin kontinuum-core for this matrix leg
+        # Explicitly override the >=0.6.2 pin so the old-core guard path is
+        # actually tested. pip honours the exact requested version.
+        run: pip install "kontinuum-core==${{ matrix.core-version }}"
+
+      - name: Show resolved versions
+        run: |
+          python -c "import sys, kontinuum_core, ai_kontinuum_monitor as m; \
+            print('python', sys.version.split()[0]); \
+            print('kontinuum-core', kontinuum_core.__version__ if hasattr(kontinuum_core,'__version__') else '?'); \
+            print('ai-kontinuum-monitor', m.__version__)"
+
+      - name: Run tests
+        run: pytest -q
+
+  build:
+    name: build sdist + wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+      - name: Check metadata
+        run: |
+          pip install twine
+          twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*

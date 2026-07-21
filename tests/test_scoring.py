@@ -5,6 +5,7 @@ from ai_kontinuum_monitor.scoring import (
     CompositeStrategy,
     NoveltyStrategy,
     default_strategy,
+    normalize_learning_state,
 )
 
 
@@ -128,3 +129,27 @@ def test_learning_progress_caps_at_one():
     scorer = AnomalyScorer(strategy=default_strategy())
     scorer._total_observations = 5000  # beyond MATURE_EVENTS
     assert scorer.learning_progress() == 1.0
+
+
+def test_normalize_learning_state_collapses_dialects():
+    # Core's engine dialect (cold_start/learning/stable) and the LLM-context
+    # dialect (cold_start/warming/mature) map onto one canonical scale.
+    assert normalize_learning_state("learning") == "warming"
+    assert normalize_learning_state("warming") == "warming"
+    assert normalize_learning_state("stable") == "mature"
+    assert normalize_learning_state("mature") == "mature"
+    assert normalize_learning_state("cold_start") == "cold_start"
+    # Empty / unknown behave safely.
+    assert normalize_learning_state(None) == "cold_start"
+    assert normalize_learning_state("") == "cold_start"
+    assert normalize_learning_state("BRAND_NEW") == "brand_new"
+
+
+def test_metrics_reports_both_raw_and_normalized_state():
+    scorer = AnomalyScorer(strategy=default_strategy())
+    scorer.score({"action": "a", "surprise": 0.1, "is_novel": True,
+                  "threshold": 0.0, "learning_state": "learning"})
+    m = scorer.metrics()
+    # Core's raw label is preserved; the canonical form is normalized.
+    assert m["learning_state_raw"] == "learning"
+    assert m["learning_state"] == "warming"

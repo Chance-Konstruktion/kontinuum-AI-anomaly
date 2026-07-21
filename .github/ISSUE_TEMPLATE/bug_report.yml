@@ -1,0 +1,55 @@
+name: Bug report
+description: Something isn't working as documented
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report! Because this package is a thin layer over
+        `kontinuum-core`, the version details below save a lot of back-and-forth.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what did you get instead?
+      placeholder: A clear description of the bug.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: A minimal snippet or command that triggers it.
+      render: python
+    validations:
+      required: true
+  - type: input
+    id: pkg-version
+    attributes:
+      label: ai-kontinuum-monitor version
+      placeholder: "e.g. 0.6.2"
+    validations:
+      required: true
+  - type: input
+    id: core-version
+    attributes:
+      label: kontinuum-core version
+      description: "`python -c 'import kontinuum_core; print(kontinuum_core.__version__)'`"
+      placeholder: "e.g. 0.6.2"
+    validations:
+      required: true
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      placeholder: "e.g. 3.11"
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: diagnostics() output (if ingestion-related)
+      description: Paste the output of `AgentMonitor(...).diagnostics()` if relevant.
+      render: json
+    validations:
+      required: false

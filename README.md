@@ -1,5 +1,10 @@
 # kontinuum-AI-anomaly
 
+[![CI](https://github.com/Chance-Konstruktion/kontinuum-AI-anomaly/actions/workflows/ci.yml/badge.svg)](https://github.com/Chance-Konstruktion/kontinuum-AI-anomaly/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/ai-kontinuum-monitor.svg)](https://pypi.org/project/ai-kontinuum-monitor/)
+[![Python versions](https://img.shields.io/pypi/pyversions/ai-kontinuum-monitor.svg)](https://pypi.org/project/ai-kontinuum-monitor/)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
+
 **A novelty & anomaly monitor for agent action streams.**
 Point it at what your agent *does* — not what a home does — and it learns the
 agent's normal rhythm, then tells you when a step doesn't fit.
@@ -103,6 +108,26 @@ run that rehearses a rhythm, injects a novelty, alerts, and renders a dashboard.
 
 ---
 
+## Command line
+
+The package ships a small CLI for driving it without writing code. Every number
+it prints is measured from real input — it never fabricates a metric.
+
+```bash
+# Stream actions (one per line) and report what's flagged + the real metrics.
+python -m ai_kontinuum_monitor watch actions.txt --history anomaly_history.json
+
+# Print the ledger's real summary + long-horizon patterns.
+python -m ai_kontinuum_monitor report --history anomaly_history.json
+
+# Render the ledger to a self-contained HTML dashboard.
+python -m ai_kontinuum_monitor dashboard --history anomaly_history.json --out dash.html
+```
+
+`ai-kontinuum-monitor` is also installed as a console script.
+
+---
+
 ## What it's good at — and what it isn't
 
 Being honest about this saves you from trusting the wrong signal:
@@ -125,6 +150,14 @@ For the hard-won details of *how* core actually ingests events — and the traps
 that cost real debugging time — see
 [`docs/INSIGHTS.md`](docs/INSIGHTS.md). Those notes came out of reverse-
 engineering core's ingestion path and aren't documented anywhere else.
+
+## Documentation
+
+- [`docs/USAGE.md`](docs/USAGE.md) — a runnable, end-to-end openclaw example.
+- [`docs/API.md`](docs/API.md) — the full public API at a glance.
+- [`docs/SCORING.md`](docs/SCORING.md) — *how* the scoring decides, and how to tune it.
+- [`docs/INSIGHTS.md`](docs/INSIGHTS.md) — field notes on core's ingestion path.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — dev setup and how to run the tests.
 
 ---
 

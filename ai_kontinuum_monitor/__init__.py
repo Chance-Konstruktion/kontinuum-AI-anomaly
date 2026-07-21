@@ -44,6 +44,7 @@ from .scoring import (
     NoveltyStrategy,
     SequenceStrategy,
     default_strategy,
+    normalize_learning_state,
     sequence_aware_strategy,
 )
 from .watch import AnomalyWatch
@@ -73,6 +74,7 @@ __all__ = [
     "CompositeStrategy",
     "default_strategy",
     "sequence_aware_strategy",
+    "normalize_learning_state",
     "AnomalyHistory",
     "AnomalyRecord",
     "AlertRouter",
