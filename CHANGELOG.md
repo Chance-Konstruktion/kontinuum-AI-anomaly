@@ -4,6 +4,15 @@ All notable changes to `ai-kontinuum-monitor` are documented here. The format
 follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- Require **kontinuum-core >= 0.6.2** (was `>=0.6.0`), aligning with the rest of
+  the KONTINUUM family. 0.6.2 is the PyPI release that ships `get_diagnostics()`,
+  so the observable-ingestion counters are now guaranteed present (the call
+  stays `hasattr`-guarded for robustness).
+
 ## [0.2.0] — Next-stage improvements
 
 Implements the next-stage improvement list (sequence-awareness, cross-stream

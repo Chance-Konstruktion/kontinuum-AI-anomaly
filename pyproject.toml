@@ -18,9 +18,11 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    # get_diagnostics() is hasattr-guarded, so >=0.6.0 is enough even on a
-    # PyPI build that predates core PR #35 (SPEC.md §5.1).
-    "kontinuum-core>=0.6.0",
+    # Aligned with the rest of the KONTINUUM family on core 0.6.2 (the release
+    # that ships get_diagnostics() on PyPI). The diagnostics call stays
+    # hasattr-guarded for robustness, but pinning >=0.6.2 guarantees the
+    # observable-ingestion counters are actually present (SPEC.md §5.1).
+    "kontinuum-core>=0.6.2",
 ]
 
 [project.optional-dependencies]
