@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: kontinuum-core (the underlying engine)
+    url: https://github.com/Chance-Konstruktion/kontinuum-core
+    about: Issues with the learning engine itself belong in the core repo.

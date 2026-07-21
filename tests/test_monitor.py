@@ -96,6 +96,10 @@ def test_supplied_timestamp_used():
 def test_diagnostics_available_on_modern_core():
     m = AgentMonitor(agent_id="bot")
     m.observe("plan")
+    if not hasattr(m.engine, "get_diagnostics"):
+        # Older core in the CI matrix (< 0.6.2) has no get_diagnostics(); the
+        # graceful-degradation path is covered by its own test below.
+        pytest.skip("core build predates get_diagnostics()")
     diag = m.diagnostics()
     # This core build has get_diagnostics(); the marker and label are present.
     assert diag["available"] is True

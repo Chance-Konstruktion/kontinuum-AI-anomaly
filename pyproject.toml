@@ -1,5 +1,8 @@
 [build-system]
-requires = ["setuptools>=61.0", "setuptools-scm>=8"]
+# setuptools >= 77 for PEP 639 SPDX license metadata (the `license` string +
+# `license-files` below). Older setuptools emits a malformed Metadata-Version
+# 2.4 `License-File` field that `twine check` rejects.
+requires = ["setuptools>=77", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -12,12 +15,13 @@ authors = [{name = "Chance-Konstruktion", email = "introareback@gmail.com"}]
 description = "Anomaly / novelty monitor for agent action streams, built on kontinuum-core"
 readme = "README.md"
 # Core is AGPL-3.0 and this package imports it; the copyleft/network
-# obligations propagate, so this repo is AGPL-3.0 too (SPEC.md §5.2).
-license = {text = "AGPL-3.0"}
+# obligations propagate, so this repo is AGPL-3.0 too (SPEC.md §5.2). Declared as
+# a PEP 639 SPDX expression; the classifier form is deprecated alongside it.
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: GNU Affero General Public License v3",
     "Operating System :: OS Independent",
 ]
 dependencies = [
@@ -30,6 +34,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7"]
+
+[project.scripts]
+ai-kontinuum-monitor = "ai_kontinuum_monitor.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/Chance-Konstruktion/kontinuum-AI-anomaly"

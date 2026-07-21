@@ -6,12 +6,45 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- **CI** (`.github/workflows/ci.yml`) — test matrix across Python 3.9–3.12 **and**
+  two `kontinuum-core` versions (`0.6.0` guard-path, `0.6.2` modern path), so the
+  version skew that broke releases before is now caught automatically. Plus a
+  build job that `twine check`s the sdist/wheel.
+- **PyPI publish workflow** (`.github/workflows/publish.yml`) — builds on a `v*`
+  tag push and uploads via OIDC Trusted Publishing (no stored token). Closes the
+  gap where a tagged release never actually reached PyPI.
+- **Command-line interface** (`cli.py` / `python -m ai_kontinuum_monitor`, also
+  the `ai-kontinuum-monitor` console script) — `watch` streams actions through
+  the pipeline and prints the run's real metrics, `report` prints a ledger's real
+  `summary()`/`patterns()`, `dashboard` renders the ledger to HTML. Every number
+  is measured from real input.
+- **Docs** — `docs/API.md` (full public API) and `docs/SCORING.md` (how the
+  scoring decides and how to tune it).
+- **Dedicated unit tests** for `correlation`, `feedback`, `presets`, `dashboard`,
+  the CLI, and learning-state normalization (86 tests, up from 52).
+- **OSS scaffolding** — `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue/PR
+  templates, and README badges.
+
 ### Changed
 
 - Require **kontinuum-core >= 0.6.2** (was `>=0.6.0`), aligning with the rest of
   the KONTINUUM family. 0.6.2 is the PyPI release that ships `get_diagnostics()`,
   so the observable-ingestion counters are now guaranteed present (the call
   stays `hasattr`-guarded for robustness).
+- **Normalized `learning_state`** — `AnomalyScorer.metrics()` now reports core's
+  maturity label collapsed onto one canonical `cold_start`/`warming`/`mature`
+  scale (`normalize_learning_state()`), with the verbatim label preserved as
+  `learning_state_raw`. Core emits two dialects (`cold_start`/`learning`/`stable`
+  from the engine, `warming`/`mature` from the LLM-context helper) which could
+  show two words for one concept next to the progress bar. `MATURE_EVENTS` is now
+  anchored to core's actual 1000-event `stable` gate (was 2000). Documented that
+  volume-based `learning_progress_pct` and accuracy-aware `learning_state` can
+  legitimately diverge.
+- **License metadata** modernized to a PEP 639 SPDX expression
+  (`AGPL-3.0-or-later`), fixing `twine check` on the built distributions
+  (requires `setuptools>=77` at build time).
 
 ## [0.2.0] — Next-stage improvements
 

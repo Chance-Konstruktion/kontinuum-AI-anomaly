@@ -26,6 +26,39 @@ from typing import Any, Deque, Dict, List, Optional, Protocol
 # median-absolute-deviation → std-equivalent, matching core's own convention.
 _MAD_TO_STD = 1.4826
 
+# Core reports a discrete maturity label on every snapshot, but the vocabulary is
+# not stable across builds: ``engine._learning_state()`` returns
+# ``cold_start`` / ``learning`` / ``stable`` (SPEC.md §5.4), while core's own
+# LLM-context helper describes the same scale as ``cold_start < warming <
+# mature``. Passing either dialect straight through to a dashboard is how you end
+# up with a header reading "100 % / learning" — two different words for one
+# concept sitting next to a progress bar. We collapse both dialects onto ONE
+# canonical 3-point scale so callers never have to know which core they got.
+_LEARNING_STATE_CANONICAL: Dict[str, str] = {
+    "cold_start": "cold_start",
+    "cold": "cold_start",
+    "learning": "warming",
+    "warming": "warming",
+    "warm": "warming",
+    "stable": "mature",
+    "mature": "mature",
+    "hot": "mature",
+}
+
+
+def normalize_learning_state(state: Optional[str]) -> str:
+    """Map any core learning-state dialect onto the canonical 3-point scale.
+
+    Returns one of ``"cold_start"`` / ``"warming"`` / ``"mature"``. Unknown or
+    empty labels fall back to ``"cold_start"`` (the safest, least-learned
+    assumption) but an unrecognised non-empty label is passed through lower-cased
+    rather than discarded, so a future core state is still visible.
+    """
+    if not state:
+        return "cold_start"
+    key = str(state).strip().lower()
+    return _LEARNING_STATE_CANONICAL.get(key, key)
+
 
 @dataclass
 class AnomalyScore:
@@ -378,10 +411,16 @@ class AnomalyScorer:
     aggregation the raw core engine does not offer.
     """
 
-    # Core's learning-state thresholds (SPEC.md §5.4): cold_start < 100 events,
-    # warming < 2000, then mature. Used to express learning as a smooth 0-1
-    # progress toward maturity alongside core's authoritative state label.
-    MATURE_EVENTS = 2000
+    # Volume at which core stops calling the model young: ``engine._learning_state``
+    # opens its ``stable`` gate at 1000 events (SPEC.md §5.4), so we anchor the
+    # smooth 0-1 progress bar to the SAME event count core uses. (An earlier
+    # value of 2000 meant progress read 50 % exactly when core already said
+    # "stable" — the two numbers disagreed for a structural reason, not a real
+    # one.) NOTE: progress is a pure *volume* heuristic; core's own
+    # ``learning_state`` also depends on prediction accuracy, so 100 % progress
+    # and a still-"warming" state can legitimately coexist when accuracy has not
+    # yet converged — see :meth:`metrics`.
+    MATURE_EVENTS = 1000
     # Rolling window used to estimate the *trend* of surprise (recent mean vs.
     # older mean). Small enough to react, large enough to be stable.
     _TREND_WINDOW = 50
@@ -395,7 +434,8 @@ class AnomalyScorer:
             lambda: deque(maxlen=self._TREND_WINDOW)
         )
         self._total_observations = 0
-        self._learning_state = "cold_start"
+        # Keep core's raw label verbatim; the canonical form is derived on read.
+        self._learning_state_raw = "cold_start"
 
     def score(self, obs: Dict[str, Any]) -> AnomalyScore:
         result = self.strategy.evaluate(obs)
@@ -408,7 +448,7 @@ class AnomalyScorer:
         self._total_observations += 1
         state = obs.get("learning_state")
         if state:
-            self._learning_state = state
+            self._learning_state_raw = state
         return result
 
     @staticmethod
@@ -453,6 +493,15 @@ class AnomalyScorer:
 
         Complements :meth:`stream_stats` (per-stream) with the aggregate numbers
         a dashboard or health check wants at a glance.
+
+        ``learning_state`` is core's label normalized onto the canonical
+        ``cold_start`` / ``warming`` / ``mature`` scale (see
+        :func:`normalize_learning_state`); ``learning_state_raw`` preserves the
+        exact string core emitted. ``learning_progress_pct`` is a **volume-only**
+        estimate (events / :attr:`MATURE_EVENTS`); because core's own state also
+        weighs prediction accuracy, a run can legitimately show 100 % progress
+        while still ``warming`` — that is a real signal (enough events, accuracy
+        not yet converged), not a bookkeeping bug.
         """
         total_obs = self._total_observations or 1
         total_anom = sum(int(c["anomalies"]) for c in self._counts.values())
@@ -467,7 +516,8 @@ class AnomalyScorer:
             "anomaly_rate": round(total_anom / total_obs, 4),
             "mean_surprise": round(total_surprise / total_obs, 4),
             "surprise_trend": round(self._trend(all_recent), 4),
-            "learning_state": self._learning_state,
+            "learning_state": normalize_learning_state(self._learning_state_raw),
+            "learning_state_raw": self._learning_state_raw,
             "learning_progress": round(self.learning_progress(), 4),
             "learning_progress_pct": round(100 * self.learning_progress(), 1),
         }
