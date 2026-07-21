@@ -1,97 +1,135 @@
 # kontinuum-AI-anomaly
 
-> PyPI package: [`ai-kontinuum-monitor`](https://pypi.org/project/ai-kontinuum-monitor/) — `pip install ai-kontinuum-monitor`
+**A novelty & anomaly monitor for agent action streams.**
+Point it at what your agent *does* — not what a home does — and it learns the
+agent's normal rhythm, then tells you when a step doesn't fit.
 
-An **anomaly / novelty monitor for agent action streams** (e.g. an
-[openclaw](https://github.com/Chance-Konstruktion) bot), built on
-[`kontinuum-core`](https://github.com/Chance-Konstruktion/kontinuum-core).
+Built on [`kontinuum-core`](https://github.com/Chance-Konstruktion/kontinuum-core),
+a neuro-inspired learning engine. This package is the layer on top that turns the
+engine's raw signal into a usable verdict, keeps a history, and can alert you.
 
-Core is a neuro-inspired learning engine designed for smart-home event streams.
-This package points it at an **agent's action log** instead, and adds the layer
-core deliberately doesn't have — the layer that makes it a *monitor*, not just
-an engine:
+> 🇩🇪 Eine deutsche Version dieser README findest du in
+> [README.de.md](README.de.md).
 
-| Layer | Module | What it adds on top of core |
-|-------|--------|------------------------------|
-| **Ingestion** | `monitor.py` (`AgentMonitor`) | Log named actions; hides token mechanics, works around core's filters. |
-| **Scoring** | `scoring.py` | Robust verdict where core's raw flag is jittery: novelty + per-stream adaptive thresholds, aggregation across streams. |
-| **History** | `history.py` | Persisted ledger — *"what was odd this week?"* — which core doesn't keep. |
-| **Alerting** | `alerting.py` | Route anomalies out: webhook / log / callback back into openclaw, with rate-limiting. |
-| **Dashboard** | `dashboard.py` | A tiny, self-contained HTML view of recent anomalies. |
-| **Orchestration** | `watch.py` (`AnomalyWatch`) | One call runs the whole pipeline. |
+---
 
-Core stays **untouched** — this repo is a thin, additive layer.
+## Why this exists
 
-### Next-stage features (v0.2.0)
+`kontinuum-core` was written to learn the behaviour of a *home* — lights,
+sensors, rooms. But its core idea (learn a stream of events, flag what's
+surprising) isn't specific to homes. An autonomous agent — a bot, a scraper, an
+"openclaw" worker — also produces a stream of actions with a normal rhythm. When
+that rhythm breaks, you usually want to know.
 
-Built entirely on top of core (core still untouched — its Home-Assistant
-ingestion path is unchanged):
+Core gives you a raw per-event "surprise" flag, but on its own that flag is
+jittery on short runs and has no memory of *what was odd last week*. This package
+adds exactly the parts core deliberately leaves out:
 
-* **Sequence-awareness** — `SequenceStrategy` / `sequence_aware_strategy()`: a
-  first-order transition model flags an action arriving in an unexpected order.
-* **Multi-agent correlation** — `MultiAgentWatch` + `CrossStreamCorrelator`:
-  anomalies coinciding across agents surface as cross-stream clusters.
-* **Strategy presets** — `export_preset` / `load_preset` / `builtin_presets`:
-  save & share tuned scoring configs as safe declarative JSON.
-* **Alerting escalation + snooze** — per-sink `min_level` and `AlertRouter.snooze`.
-* **LLM feedback loop** — `LLMFeedbackSink`: an anomaly becomes a prompt to a
-  model you supply (provider-agnostic).
-* **Long-term analysis** — `AnomalyHistory.patterns(weeks=…)`: anomaly patterns
-  over weeks (by week / weekday / hour, recurring actions).
+| Layer | Module | What it adds |
+|---|---|---|
+| Ingestion | `AgentMonitor` | Feeds named agent actions into the engine, hiding the token/room mechanics core requires. |
+| Scoring | `scoring` | Turns the jittery raw flag into a stable verdict: novelty-first, plus an adaptive threshold for *known* actions once there's enough data. |
+| History | `history` | A ledger — "what was flagged this week?" — which core does not keep. |
+| Alerting | `alerting` | Routes anomalies to a webhook, a log, or a callback back into your agent. |
+| Correlation | `correlation` | Watches several agents/streams at once and links related anomalies. |
+| Feedback | `feedback` | Renders the engine's state as a prompt so the agent's own LLM can reflect. |
+| Dashboard | `dashboard` | A tiny self-contained HTML view. |
+| Orchestration | `AnomalyWatch` | Wires all of the above together behind one `observe()` call. |
 
-See [`docs/USAGE.md`](docs/USAGE.md) for examples of each.
+---
 
 ## Install
 
 ```bash
-pip install ai-kontinuum-monitor   # pulls in kontinuum-core
+pip install kontinuum-AI-anomaly
 ```
+
+Requires Python ≥ 3.9 and `kontinuum-core >= 0.6.2` (pulled in automatically).
+
+---
 
 ## Quick start
 
 ```python
-from ai_kontinuum_monitor import AnomalyWatch, AlertRouter, LogSink
+from ai_kontinuum_monitor import AnomalyWatch
+
+watch = AnomalyWatch(agent_id="openclaw")
+
+# Let it learn the agent's normal rhythm.
+rhythm = ["plan", "act", "observe", "reflect", "done"]
+for _ in range(20):
+    for action in rhythm:
+        watch.observe(action)
+
+# A rehearsed step is unremarkable...
+watch.observe("plan").is_anomaly        # -> False
+
+# ...a never-seen step is flagged.
+verdict = watch.observe("escalate")
+print(verdict.is_anomaly, verdict.score, verdict.reasons)
+# True 0.72 ['[novelty] never-seen action']
+```
+
+That output is real, not illustrative — it's what the snippet above prints on a
+fresh install.
+
+Each `observe()` returns an `AnomalyScore` with: `action`, `is_anomaly`,
+`score` (0–1 severity), `surprise`, `threshold`, `is_novel`, `reasons`, and
+`strategy`. Call `.as_dict()` for a JSON-friendly form.
+
+---
+
+## Alerting into your agent
+
+```python
+from ai_kontinuum_monitor import AnomalyWatch, AlertRouter, WebhookSink, LogSink
 
 watch = AnomalyWatch(
     agent_id="openclaw",
-    brain_path="brain.json",       # persist the learned model
-    history_path="anomalies.json", # persist the anomaly ledger
-    router=AlertRouter([LogSink()]),
+    history_path="anomaly_history.json",   # persist the ledger
+    router=AlertRouter([
+        LogSink(),
+        WebhookSink("https://example.com/hooks/openclaw"),
+    ]),
 )
-
-# Rehearse the agent's normal rhythm.
-for _ in range(20):
-    for action in ["plan", "act", "observe", "reflect", "done"]:
-        watch.observe(action)
-
-# A never-seen action trips the monitor.
-verdict = watch.observe("escalate")
-print(verdict.is_anomaly, verdict.reasons)   # True  ['[novelty] never-seen action', ...]
-
-watch.save()
 ```
 
-## Honest limitations
+Only actions that cross the anomaly bar are recorded and routed, so your webhook
+stays quiet during normal operation. Use `CallbackSink` to hand the anomaly
+straight back to your agent's own code.
 
-* The **reliable signal is novelty**: a never-seen action produces high surprise
-  and is flagged on its first occurrence.
-* **Sequence / order anomalies are weak on short runs.** Core stays in
-  `cold_start` under 100 events and its raw per-event `anomaly` flag is jittery
-  below a few hundred events — the scoring layer's default is therefore
-  novelty-first. The per-stream adaptive test reaches full strength once a
-  stream has ~100 samples, but a **provisional, widened** early test engages
-  from ~20 samples so short or very stable streams still react to a clear spike
-  (tune or disable via `AdaptiveThresholdStrategy(early_warmup=…)`).
+See [`examples/openclaw_demo.py`](examples/openclaw_demo.py) for an end-to-end
+run that rehearses a rhythm, injects a novelty, alerts, and renders a dashboard.
 
-Run-wide metrics — `watch.metrics()` reports `learning_progress_pct` and a
-signed `surprise_trend` — are available for dashboards and health checks, and
-`render_dashboard(..., metrics=watch.metrics())` surfaces them with a filterable
-timeline.
-* This is an **observer, not training** — it never changes the agent's own LLM.
+---
+
+## What it's good at — and what it isn't
+
+Being honest about this saves you from trusting the wrong signal:
+
+- **Reliable:** *novelty* — a genuinely never-seen action is flagged
+  immediately and confidently.
+- **Weaker:** *order/sequence* anomalies (right actions, wrong order). The
+  engine needs a lot of events before this sharpens, and stays in a
+  `cold_start` learning phase under 100 events. `SequenceStrategy` helps but
+  don't expect miracles on short runs.
+- **Not a thing it does:** it does **not** train or change your agent. It's an
+  external observer that produces a signal; what you do with that signal is up
+  to you.
+
+The design reflects this: scoring is **novelty-first**, and the adaptive
+threshold for known actions only switches on once there's enough data to be
+trustworthy.
+
+For the hard-won details of *how* core actually ingests events — and the traps
+that cost real debugging time — see
+[`docs/INSIGHTS.md`](docs/INSIGHTS.md). Those notes came out of reverse-
+engineering core's ingestion path and aren't documented anywhere else.
+
+---
 
 ## License
 
-AGPL-3.0 — a deliberate choice, because core is AGPL-3.0 and this package
-imports it (see [`SPEC.md`](SPEC.md) §5.2). Not legal advice.
-
-See [`docs/USAGE.md`](docs/USAGE.md) for a fuller openclaw example.
+AGPL-3.0. `kontinuum-core` is AGPL-3.0 and this package imports it, so the
+copyleft and network-service obligations propagate here too. If you build on
+this, keep that in mind.
