@@ -54,9 +54,20 @@ class AgentMonitor:
     API — no custom-profile wiring required.
     """
 
-    def __init__(self, persist_path: Optional[str] = None, agent_id: str = "agent"):
+    def __init__(
+        self,
+        persist_path: Optional[str] = None,
+        agent_id: str = "agent",
+        *,
+        step_seconds: float = DEFAULT_STEP_SECONDS,
+    ):
         self.persist_path = persist_path
         self.agent_id = agent_id
+        # Spacing on the virtual clock. Callers replaying genuinely
+        # high-frequency streams can raise it so consecutive events aren't
+        # silently burst-filtered (SPEC.md §5.5). Clamped to the burst-safe
+        # default minimum so a too-small value can't reintroduce silent drops.
+        self.step_seconds = max(float(step_seconds), DEFAULT_STEP_SECONDS)
         self.engine = KontinuumEngine()
         self._registered: set[str] = set()
         self._state_on: Dict[str, bool] = {}
@@ -106,7 +117,7 @@ class AgentMonitor:
 
         # 3) Realistic timestamp on the virtual clock unless the caller gave one.
         if ts is None:
-            self._clock += timedelta(seconds=DEFAULT_STEP_SECONDS)
+            self._clock += timedelta(seconds=self.step_seconds)
             ts = self._clock
         else:
             # Keep the virtual clock monotonically ahead of any supplied ts so a
