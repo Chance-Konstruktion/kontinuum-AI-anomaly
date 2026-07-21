@@ -127,6 +127,59 @@ class AnomalyHistory:
         }
 
     # ------------------------------------------------------------------
+    # Long-term analysis — "anomaly patterns over weeks"
+    # ------------------------------------------------------------------
+    def patterns(self, weeks: Optional[float] = None) -> Dict[str, Any]:
+        """Retrospective pattern analysis over a long window.
+
+        Answers GrokAI's "Anomaly-Muster über Wochen": bucket anomalies by ISO
+        week, by weekday and by hour-of-day, and surface *recurring* actions
+        (flagged in 2+ distinct weeks) — the long-horizon view core, which only
+        judges the present event, cannot give.
+
+        Args:
+            weeks: Look-back window in weeks (``None`` = all recorded history).
+        """
+        records = (
+            self.recent(weeks * 7) if weeks is not None else list(self.records)
+        )
+        by_week: "Counter[str]" = Counter()
+        by_weekday: "Counter[str]" = Counter()
+        by_hour: "Counter[int]" = Counter()
+        weeks_per_action: Dict[str, set] = {}
+        weekday_names = [
+            "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun",
+        ]
+        for r in records:
+            dt = r.datetime()
+            iso = dt.isocalendar()
+            week_key = f"{iso[0]}-W{iso[1]:02d}"
+            by_week[week_key] += 1
+            by_weekday[weekday_names[dt.weekday()]] += 1
+            by_hour[dt.hour] += 1
+            weeks_per_action.setdefault(r.action, set()).add(week_key)
+
+        recurring = {
+            action: sorted(wks)
+            for action, wks in weeks_per_action.items()
+            if len(wks) >= 2
+        }
+        n_weeks = len(by_week) or 1
+        return {
+            "window_weeks": weeks,
+            "total": len(records),
+            "weeks_observed": len(by_week),
+            "by_week": dict(sorted(by_week.items())),
+            "by_weekday": {d: by_weekday.get(d, 0) for d in weekday_names},
+            "by_hour": {h: by_hour.get(h, 0) for h in range(24)},
+            "mean_per_week": round(len(records) / n_weeks, 2),
+            "peak_week": by_week.most_common(1)[0] if by_week else None,
+            "recurring_actions": dict(
+                sorted(recurring.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+            ),
+        }
+
+    # ------------------------------------------------------------------
     # Persistence
     # ------------------------------------------------------------------
     def save(self) -> None:

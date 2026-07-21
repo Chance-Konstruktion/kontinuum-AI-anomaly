@@ -26,6 +26,37 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+# Escalation levels, ordered least → most severe. A record's level is derived
+# from its severity ``score`` (0-1) via :func:`escalation_level`; sinks can
+# subscribe to a minimum level so a noisy log sink and a page-the-human sink can
+# share one router.
+LEVELS: List[str] = ["info", "warning", "critical"]
+_LEVEL_INDEX: Dict[str, int] = {name: i for i, name in enumerate(LEVELS)}
+
+# Default score cut-points. A novel action (no learned baseline) always lands at
+# least at ``warning`` regardless of its raw score.
+DEFAULT_LEVEL_THRESHOLDS: Dict[str, float] = {"warning": 0.4, "critical": 0.75}
+
+
+def escalation_level(
+    rec: AnomalyRecord,
+    thresholds: Optional[Dict[str, float]] = None,
+) -> str:
+    """Map an anomaly's severity ``score`` to an escalation level.
+
+    ``score >= critical`` → ``"critical"``; ``>= warning`` → ``"warning"``;
+    otherwise ``"info"``. A novel action is floored to ``"warning"`` because a
+    never-seen action is always worth a human's attention even when its raw
+    score is modest.
+    """
+    th = thresholds or DEFAULT_LEVEL_THRESHOLDS
+    if rec.score >= th.get("critical", 0.75):
+        return "critical"
+    if rec.is_novel or rec.score >= th.get("warning", 0.4):
+        return "warning"
+    return "info"
+
+
 class AlertSink(Protocol):
     """A sink delivers one anomaly somewhere. Must not raise on delivery
     failure — return ``False`` instead so routing to other sinks continues."""
@@ -40,9 +71,9 @@ def format_alert(rec: AnomalyRecord) -> str:
     kind = "NOVEL" if rec.is_novel else "ANOMALY"
     reason = "; ".join(rec.reasons) or "flagged"
     return (
-        f"[{kind}] agent={rec.agent_id} action={rec.action!r} "
-        f"score={rec.score:.2f} surprise={rec.surprise:.2f} "
-        f"({reason}) @ {rec.ts}"
+        f"[{escalation_level(rec).upper()}][{kind}] agent={rec.agent_id} "
+        f"action={rec.action!r} score={rec.score:.2f} "
+        f"surprise={rec.surprise:.2f} ({reason}) @ {rec.ts}"
     )
 
 
@@ -130,22 +161,69 @@ class WebhookSink:
 
 
 class AlertRouter:
-    """Fan a flagged anomaly out to every sink, with per-action rate-limiting.
+    """Fan a flagged anomaly out to every sink, with rate-limiting, per-sink
+    escalation levels, and snooze.
 
     Args:
-        sinks: Sinks to deliver to.
+        sinks: Sinks to deliver to. Each may be a bare sink (receives every
+            level) or a ``(sink, min_level)`` pair — that sink then only fires
+            for anomalies at or above ``min_level`` (one of :data:`LEVELS`), so a
+            chatty ``LogSink`` and a page-someone ``WebhookSink`` can share a
+            router.
         cooldown_seconds: Minimum gap between alerts for the *same* action; a
             repeat inside the window is suppressed. ``0`` disables rate-limiting.
+        level_thresholds: Score cut-points passed to :func:`escalation_level`.
     """
 
-    def __init__(self, sinks: Optional[List[AlertSink]] = None, cooldown_seconds: float = 0.0):
-        self.sinks: List[AlertSink] = list(sinks or [])
+    def __init__(
+        self,
+        sinks: Optional[List[Any]] = None,
+        cooldown_seconds: float = 0.0,
+        *,
+        level_thresholds: Optional[Dict[str, float]] = None,
+    ):
+        self.sinks: List[AlertSink] = []
+        self._min_level: Dict[int, str] = {}
         self.cooldown_seconds = cooldown_seconds
+        self.level_thresholds = level_thresholds or DEFAULT_LEVEL_THRESHOLDS
         self._last_sent: Dict[str, datetime] = {}
+        self._snoozed: Dict[str, datetime] = {}
         self.suppressed = 0
+        for entry in sinks or []:
+            if isinstance(entry, tuple):
+                self.add_sink(entry[0], min_level=entry[1])
+            else:
+                self.add_sink(entry)
 
-    def add_sink(self, sink: AlertSink) -> None:
+    def add_sink(self, sink: AlertSink, *, min_level: str = "info") -> None:
+        if min_level not in _LEVEL_INDEX:
+            raise ValueError(f"min_level must be one of {LEVELS}")
+        self._min_level[id(sink)] = min_level
         self.sinks.append(sink)
+
+    # ------------------------------------------------------------------
+    # Snooze
+    # ------------------------------------------------------------------
+    def snooze(self, action: str, seconds: float, *, now: Optional[datetime] = None) -> None:
+        """Mute alerts for ``action`` until ``seconds`` from ``now``.
+
+        Snoozing suppresses routing for that action's alerts until the window
+        expires (an on-call human silencing a known-flapping stream). Distinct
+        from ``cooldown_seconds``, which is automatic per-action rate-limiting.
+        """
+        self._snoozed[action] = (now or _now()) + timedelta(seconds=seconds)
+
+    def unsnooze(self, action: str) -> None:
+        self._snoozed.pop(action, None)
+
+    def _is_snoozed(self, action: str, now: datetime) -> bool:
+        until = self._snoozed.get(action)
+        if until is None:
+            return False
+        if now >= until:
+            del self._snoozed[action]
+            return False
+        return True
 
     def _rate_limited(self, action: str, now: datetime) -> bool:
         if self.cooldown_seconds <= 0:
@@ -156,11 +234,22 @@ class AlertRouter:
         )
 
     def route(self, rec: AnomalyRecord, *, now: Optional[datetime] = None) -> Dict[str, Any]:
-        """Deliver ``rec`` to all sinks. Returns a per-sink delivery report."""
+        """Deliver ``rec`` to eligible sinks. Returns a per-sink delivery report."""
         now = now or _now()
+        level = escalation_level(rec, self.level_thresholds)
+        if self._is_snoozed(rec.action, now):
+            self.suppressed += 1
+            return {"delivered": False, "reason": "snoozed", "level": level, "sinks": {}}
         if self._rate_limited(rec.action, now):
             self.suppressed += 1
-            return {"delivered": False, "reason": "rate_limited", "sinks": {}}
+            return {"delivered": False, "reason": "rate_limited", "level": level, "sinks": {}}
         self._last_sent[rec.action] = now
-        results = {sink.name: sink.deliver(rec) for sink in self.sinks}
-        return {"delivered": True, "sinks": results}
+        rank = _LEVEL_INDEX[level]
+        results: Dict[str, bool] = {}
+        for sink in self.sinks:
+            if rank < _LEVEL_INDEX[self._min_level.get(id(sink), "info")]:
+                continue
+            results[sink.name] = sink.deliver(rec)
+        if not results:
+            return {"delivered": False, "reason": "below_sink_levels", "level": level, "sinks": {}}
+        return {"delivered": True, "level": level, "sinks": results}

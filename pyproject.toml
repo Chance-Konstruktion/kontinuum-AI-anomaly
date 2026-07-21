@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-kontinuum-monitor"
-version = "0.1.0"
+version = "0.2.0"
 authors = [{name = "Chance-Konstruktion", email = "introareback@gmail.com"}]
 description = "Anomaly / novelty monitor for agent action streams, built on kontinuum-core"
 readme = "README.md"

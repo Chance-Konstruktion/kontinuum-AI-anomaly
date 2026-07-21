@@ -20,6 +20,25 @@ an engine:
 
 Core stays **untouched** — this repo is a thin, additive layer.
 
+### Next-stage features (v0.2.0)
+
+Built entirely on top of core (core still untouched — its Home-Assistant
+ingestion path is unchanged):
+
+* **Sequence-awareness** — `SequenceStrategy` / `sequence_aware_strategy()`: a
+  first-order transition model flags an action arriving in an unexpected order.
+* **Multi-agent correlation** — `MultiAgentWatch` + `CrossStreamCorrelator`:
+  anomalies coinciding across agents surface as cross-stream clusters.
+* **Strategy presets** — `export_preset` / `load_preset` / `builtin_presets`:
+  save & share tuned scoring configs as safe declarative JSON.
+* **Alerting escalation + snooze** — per-sink `min_level` and `AlertRouter.snooze`.
+* **LLM feedback loop** — `LLMFeedbackSink`: an anomaly becomes a prompt to a
+  model you supply (provider-agnostic).
+* **Long-term analysis** — `AnomalyHistory.patterns(weeks=…)`: anomaly patterns
+  over weeks (by week / weekday / hour, recurring actions).
+
+See [`docs/USAGE.md`](docs/USAGE.md) for examples of each.
+
 ## Install
 
 ```bash
