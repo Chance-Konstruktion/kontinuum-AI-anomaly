@@ -215,6 +215,85 @@ class AdaptiveThresholdStrategy:
         )
 
 
+class SequenceStrategy:
+    """Order / transition anomalies: catch an *unexpected next action*.
+
+    Core's own sequence-awareness is weak on short runs (SPEC §2), and that is a
+    *core* limitation — so this strategy adds the missing signal **in the monitor
+    layer** instead, without touching core. It learns a first-order transition
+    model: for each action, how often each *following* action occurs. Once a
+    predecessor has been seen enough times (``min_context``), a transition whose
+    learned probability falls at or below ``min_prob`` — including a never-before-
+    seen transition — is flagged as a sequence anomaly.
+
+    This is deliberately first-order (bigram). It complements, and does not
+    replace, :class:`NoveltyStrategy`: novelty catches a brand-new *action*, this
+    catches a familiar action arriving in an unfamiliar *order*.
+
+    Args:
+        min_context: Minimum times the predecessor must have been observed
+            before its outgoing transitions are judged (avoids flagging on thin
+            evidence).
+        min_prob: A transition at or below this learned probability is anomalous.
+            ``0.0`` flags only never-seen transitions; the default also catches
+            very rare ones.
+    """
+
+    name = "sequence"
+
+    def __init__(self, min_context: int = 20, min_prob: float = 0.02):
+        self.min_context = min_context
+        self.min_prob = min_prob
+        self._transitions: Dict[str, Dict[str, int]] = defaultdict(
+            lambda: defaultdict(int)
+        )
+        self._outgoing: Dict[str, int] = defaultdict(int)
+        self._prev: Optional[str] = None
+
+    def evaluate(self, obs: Dict[str, Any]) -> AnomalyScore:
+        action = obs["action"]
+        surprise = float(obs.get("surprise", 0.0))
+        novel = bool(obs.get("is_novel"))
+        prev = self._prev
+
+        reasons: List[str] = []
+        is_anomaly = False
+        score = 0.0
+        # Threshold field carries the probability bar for transparency.
+        threshold = self.min_prob
+
+        if prev is not None and self._outgoing[prev] >= self.min_context and not novel:
+            total = self._outgoing[prev]
+            count = self._transitions[prev].get(action, 0)
+            prob = count / total if total else 0.0
+            if prob <= self.min_prob:
+                is_anomaly = True
+                score = round(1.0 - prob, 4)
+                kind = "never-seen" if count == 0 else "rare"
+                reasons.append(
+                    f"{kind} transition {prev!r}→{action!r} "
+                    f"(p={prob:.3f} ≤ {self.min_prob:.3f})"
+                )
+
+        # Learn the transition AFTER judging it, so the current event never
+        # dilutes its own rarity (mirrors the adaptive strategy's pre-read).
+        if prev is not None:
+            self._transitions[prev][action] += 1
+            self._outgoing[prev] += 1
+        self._prev = action
+
+        return AnomalyScore(
+            action=action,
+            is_anomaly=is_anomaly,
+            score=score,
+            surprise=surprise,
+            threshold=threshold,
+            is_novel=novel,
+            reasons=reasons,
+            strategy=self.name,
+        )
+
+
 class CompositeStrategy:
     """Combine several strategies with OR (default) or AND aggregation.
 
@@ -273,6 +352,20 @@ def default_strategy() -> CompositeStrategy:
     """
     return CompositeStrategy(
         [NoveltyStrategy(), AdaptiveThresholdStrategy()], mode="or"
+    )
+
+
+def sequence_aware_strategy() -> CompositeStrategy:
+    """Novelty OR per-stream adaptive threshold OR first-order sequence.
+
+    Adds :class:`SequenceStrategy` on top of :func:`default_strategy`, so an
+    action arriving in an unexpected *order* is caught in addition to novel and
+    per-stream-outlier actions — the sequence-awareness GrokAI flagged as
+    missing, provided entirely in the monitor layer (core untouched).
+    """
+    return CompositeStrategy(
+        [NoveltyStrategy(), AdaptiveThresholdStrategy(), SequenceStrategy()],
+        mode="or",
     )
 
 

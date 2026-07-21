@@ -4,6 +4,44 @@ All notable changes to `ai-kontinuum-monitor` are documented here. The format
 follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] — Next-stage improvements
+
+Implements the next-stage improvement list (sequence-awareness, cross-stream
+correlation, config presets, alerting escalation/snooze, LLM feedback loop,
+long-term analysis). Every item is an **additive layer in this package** —
+`kontinuum-core` is untouched, so its Home-Assistant ingestion path is
+unchanged. All new behaviour is opt-in; existing call sites keep working.
+
+### Added
+
+- **Sequence-awareness (`SequenceStrategy`)** — a first-order (bigram)
+  transition model in the monitor layer catches an action arriving in an
+  unexpected *order* (never-seen / rare transition), the signal core is weak on.
+  Wire it in via the new `sequence_aware_strategy()` factory (novelty OR
+  adaptive OR sequence). This addresses the "sequence-awareness" item *without*
+  a core change — it lives entirely on top of core.
+- **Cross-stream correlation (`correlation.py`)** — `CrossStreamCorrelator`
+  finds anomalies that co-occur across different agents within a time window,
+  and `MultiAgentWatch` runs one `AnomalyWatch` per agent (own brain/ledger)
+  while feeding every flagged anomaly into the shared correlator;
+  `correlated_clusters()` surfaces multi-agent incidents.
+- **Strategy presets (`presets.py`)** — export/import a scoring configuration as
+  safe declarative JSON (`export_preset`/`import_preset`, `save_preset`/
+  `load_preset`), plus named `builtin_presets()` (`default`, `sequence_aware`,
+  `novelty_only`, `sensitive`).
+- **Alerting escalation + snooze** — `escalation_level()` maps a score to
+  `info`/`warning`/`critical` (novel actions floored to `warning`); `AlertRouter`
+  accepts `(sink, min_level)` pairs so each sink only fires at/above its level,
+  and gains `snooze()`/`unsnooze()` to mute a known-flapping action for a window.
+- **LLM feedback loop (`feedback.py`)** — `LLMFeedbackSink` is an alert sink that
+  builds a compact prompt from the anomaly (plus optional live engine context)
+  and calls a user-supplied `llm(prompt) -> str`. Provider-agnostic, no new hard
+  dependency; model/handler errors are swallowed so routing can't break, with an
+  optional `max_calls` cost guard.
+- **Long-term analysis** — `AnomalyHistory.patterns(weeks=…)` buckets anomalies
+  by ISO week / weekday / hour and reports *recurring* actions (flagged in 2+
+  weeks) — "Anomalie-Muster über Wochen".
+
 ## [Unreleased]
 
 Constructive-improvement pass — addresses feedback on threshold latency,
