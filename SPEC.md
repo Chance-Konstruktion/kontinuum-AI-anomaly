@@ -102,14 +102,16 @@ about 20 times, then injects a never-seen action `escalate`, must yield
 
 ## 5. Verified gotchas (checked against v0.6.0)
 
-### 5.1 Version trap (critical)
-`get_diagnostics()` (from core PR #35) is **not** in the published PyPI
-`0.6.0` — only on `main`. If this repo depends on `kontinuum-core` from PyPI,
-that function will not exist. Resolve one of:
-- release core `0.7.0` to PyPI and depend on `>=0.7.0`, **or**
-- `hasattr`-guard every diagnostics call, **or**
-- temporarily pin to the core `main` git ref.
-Do not let the monitor hard-depend on `get_diagnostics()`.
+### 5.1 Version trap (resolved)
+`get_diagnostics()` (from core PR #35) was **not** in the published PyPI
+`0.6.0` — only on `main` — so an early build against PyPI `0.6.0` would not have
+the function. This is now resolved: **`kontinuum-core` 0.6.2 ships
+`get_diagnostics()` on PyPI**, and this repo depends on `kontinuum-core>=0.6.2`.
+
+The diagnostics call in `AgentMonitor.diagnostics()` nonetheless stays
+`hasattr`-guarded for robustness (a user could still force-install an older
+core), so the monitor never hard-depends on `get_diagnostics()` and degrades to
+a clear `{"available": False, ...}` marker on a core that lacks it.
 
 ### 5.2 License
 Core is **AGPL-3.0** (strong copyleft, network clause). This repo imports it, so
