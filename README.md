@@ -1,4 +1,6 @@
-# ai-kontinuum-monitor
+# kontinuum-AI-anomaly
+
+> PyPI package: [`ai-kontinuum-monitor`](https://pypi.org/project/ai-kontinuum-monitor/) — `pip install ai-kontinuum-monitor`
 
 An **anomaly / novelty monitor for agent action streams** (e.g. an
 [openclaw](https://github.com/Chance-Konstruktion) bot), built on
