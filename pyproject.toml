@@ -9,8 +9,8 @@ build-backend = "setuptools.build_meta"
 name = "kontinuum-AI-anomaly"
 # Version is derived from the Git tag by setuptools-scm (see [tool.setuptools_scm]
 # below), matching kontinuum-core. Tag `vX.Y.Z` and build — no hardcoded string
-# to bump. Building without a tag yields a dev version; tag `v0.1.0a1` for the
-# first (experimental / alpha) release.
+# to bump. Building without a tag yields a dev version; tag `v0.1.0a3` for the
+# next (experimental / alpha) release.
 dynamic = ["version"]
 authors = [{name = "Chance-Konstruktion", email = "introareback@gmail.com"}]
 description = "Anomaly / novelty monitor for agent action streams, built on kontinuum-core"

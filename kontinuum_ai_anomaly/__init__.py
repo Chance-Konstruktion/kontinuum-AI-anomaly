@@ -36,6 +36,7 @@ from .presets import (
     load_preset,
     save_preset,
 )
+from .recurrence import RecurrenceDetector, RecurrenceFinding
 from .scoring import (
     AdaptiveThresholdStrategy,
     AnomalyScore,
@@ -86,6 +87,9 @@ __all__ = [
     "LEVELS",
     "render_dashboard",
     "AnomalyWatch",
+    # Recurrence detection
+    "RecurrenceDetector",
+    "RecurrenceFinding",
     # Cross-stream correlation
     "MultiAgentWatch",
     "CrossStreamCorrelator",

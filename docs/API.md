@@ -14,7 +14,7 @@ decides the way it does see [`SCORING.md`](SCORING.md).
 
 ## Orchestration
 
-### `AnomalyWatch(agent_id="agent", *, brain_path=None, history_path=None, strategy=None, router=None)`
+### `AnomalyWatch(agent_id="agent", *, brain_path=None, history_path=None, strategy=None, router=None, recurrence=None, recurrence_path=None, track_recurrence=True)`
 
 The headline entry point. One `observe()` runs the whole pipeline: ingest →
 score → record (if flagged) → alert (if flagged).
@@ -27,7 +27,10 @@ score → record (if flagged) → alert (if flagged).
 | `stream_stats()` | `dict` | Per-stream counters (observations, anomalies, trend). |
 | `metrics()` | `dict` | Run-wide metrics (see [Metrics](#metrics-dictionary)). |
 | `recent_anomalies(days=7.0)` | `list[AnomalyRecord]` | The recent ledger window. |
-| `save()` | `None` | Persist brain + ledger (no-op without paths). |
+| `check_recurrence(*, now=None)` | `list[RecurrenceFinding]` | Recurring-behaviour findings; read-only, out-of-band from the live verdict. |
+| `recurrence_report(*, now=None)` | `list[dict]` | `check_recurrence` as JSON-friendly dicts. |
+| `route_recurrence(*, now=None)` | `list[RecurrenceFinding]` | Route findings through the alert router (≤ once per action per window). |
+| `save()` | `None` | Persist brain + ledger + recurrence (no-op without paths). |
 
 ### `MultiAgentWatch(*, window_seconds=60.0, strategy=None, router=None, brain_dir=None, history_dir=None)`
 
@@ -114,6 +117,30 @@ builds one. `.datetime()` parses its ISO timestamp.
 
 ---
 
+## Recurrence
+
+`RecurrenceDetector(*, bucket_seconds=86400, max_buckets=30, new_within_days=7,
+established_min_count=5, spike_factor=3.0, spike_k=4.0, baseline_min_buckets=3,
+silence_min_median=1.0)` keeps time-windowed counts of **every** observed action
+(bounded ring buffer) and derives recurring-behaviour signals that novelty —
+which fires only on the first occurrence — cannot.
+
+- `record(action, *, ts=None)` — count one occurrence (fed from every
+  `AnomalyWatch.observe`; does not affect the live verdict).
+- `report(*, now=None) -> list[RecurrenceFinding]` — read-only evaluation. With
+  no `now`, the current window is taken from the latest recorded bucket.
+- `to_dict()` / `from_dict(data)` — JSON round-trip including buckets.
+- `RecurrenceFinding(action, signal, reason, rate_now, baseline, severity,
+  first_seen)`; `signal` is `"new_established"` | `"rate_spike"` |
+  `"gone_silent"`; `.as_dict()` for a JSON-friendly form.
+
+On `AnomalyWatch`: `check_recurrence(*, now=None)`, `recurrence_report(*, now=None)`
+(dicts), and `route_recurrence(*, now=None)` (through the alert router, at most
+once per action per window). Enabled by default; disable with
+`track_recurrence=False`, persist with `recurrence_path=...`.
+
+---
+
 ## Alerting
 
 `AlertRouter(sinks=None, cooldown_seconds=0.0, *, level_thresholds=None)` fans a
@@ -172,8 +199,9 @@ optionally with learning-progress and surprise-trend cards from `metrics`.
 
 | Command | What it does |
 |---|---|
-| `watch [INPUT] [--agent --brain --history --preset --json --quiet]` | Stream actions (one per line, `-` = stdin), report what's flagged plus the run's real `metrics()`. |
+| `watch [INPUT] [--agent --brain --history --recurrence --preset --json --quiet]` | Stream actions (one per line, `-` = stdin), report what's flagged plus the run's real `metrics()`. `--recurrence FILE` persists windowed action counts. |
 | `report --history FILE [--days --weeks --json]` | Print the ledger's real `summary()` and `patterns()`. Read-only. |
+| `recurrence --recurrence FILE [--json]` | Print recurrence findings (new-established / rate-spike / gone-silent) from a saved recurrence state. Read-only. |
 | `dashboard --history FILE [--out --days]` | Render the ledger to self-contained HTML. |
 
 Every number printed is measured from real input — the CLI never fabricates a

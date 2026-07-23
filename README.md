@@ -37,6 +37,7 @@ adds exactly the parts core deliberately leaves out:
 | Ingestion | `AgentMonitor` | Feeds named agent actions into the engine, hiding the token/room mechanics core requires. |
 | Scoring | `scoring` | Turns the jittery raw flag into a stable verdict: novelty-first, plus an adaptive threshold for *known* actions once there's enough data. |
 | History | `history` | A ledger — "what was flagged this week?" — which core does not keep. |
+| Recurrence | `recurrence` | Windowed counts of *every* action (not just flagged ones), so recurring misbehaviour novelty fires on only once stays visible: new-established, rate-spike, gone-silent. |
 | Alerting | `alerting` | Routes anomalies to a webhook, a log, or a callback back into your agent. |
 | Correlation | `correlation` | Watches several agents/streams at once and links related anomalies. |
 | Feedback | `feedback` | Renders the engine's state as a prompt so the agent's own LLM can reflect. |
@@ -124,6 +125,10 @@ python -m kontinuum_ai_anomaly report --history anomaly_history.json
 
 # Render the ledger to a self-contained HTML dashboard.
 python -m kontinuum_ai_anomaly dashboard --history anomaly_history.json --out dash.html
+
+# Report recurring behaviour (new-established / rate-spike / gone-silent).
+python -m kontinuum_ai_anomaly watch actions.txt --recurrence recurrence.json
+python -m kontinuum_ai_anomaly recurrence --recurrence recurrence.json
 ```
 
 `kontinuum-AI-anomaly` is also installed as a console script.
