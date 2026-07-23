@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from typing import Any, Dict, Iterable, Iterator, List, Optional, TextIO
 
@@ -24,6 +25,7 @@ from . import __version__
 from .alerting import format_alert
 from .history import AnomalyHistory, AnomalyRecord
 from .presets import builtin_presets
+from .recurrence import RecurrenceDetector
 from .scoring import ScoringStrategy
 from .watch import AnomalyWatch
 
@@ -78,6 +80,7 @@ def _cmd_watch(args: argparse.Namespace) -> int:
         brain_path=args.brain,
         history_path=args.history,
         strategy=strategy,
+        recurrence_path=args.recurrence,
     )
     flagged = 0
     total = 0
@@ -94,7 +97,7 @@ def _cmd_watch(args: argparse.Namespace) -> int:
                         result, agent_id=args.agent, detail=ev.get("detail")
                     )
                     print(format_alert(rec))
-    if args.brain or args.history:
+    if args.brain or args.history or args.recurrence:
         watch.save()
 
     metrics = watch.metrics()
@@ -151,6 +154,36 @@ def _cmd_report(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_recurrence(args: argparse.Namespace) -> int:
+    if not args.recurrence or not os.path.exists(args.recurrence):
+        raise SystemExit(
+            "this command needs a persisted recurrence state "
+            "(--recurrence PATH, produced by `watch --recurrence PATH`)"
+        )
+    with open(args.recurrence, "r", encoding="utf-8") as fh:
+        detector = RecurrenceDetector().from_dict(json.load(fh))
+    findings = detector.report()
+    if args.json:
+        print(json.dumps([f.as_dict() for f in findings], indent=2))
+        return 0
+    if not findings:
+        print("No recurrence findings.")
+        return 0
+    labels = {
+        "new_established": "NEW-ESTABLISHED",
+        "rate_spike": "RATE-SPIKE",
+        "gone_silent": "GONE-SILENT",
+    }
+    print(f"Recurrence report — {len(findings)} finding(s)")
+    for f in findings:
+        tag = labels.get(f.signal, f.signal.upper())
+        print(
+            f"  [{tag}] {f.action!r} sev={f.severity:.2f} "
+            f"now={f.rate_now:g} baseline={f.baseline:g} — {f.reason}"
+        )
+    return 0
+
+
 def _cmd_dashboard(args: argparse.Namespace) -> int:
     from .dashboard import render_dashboard
 
@@ -179,6 +212,8 @@ def build_parser() -> argparse.ArgumentParser:
     w.add_argument("--agent", default="agent", help="agent id label")
     w.add_argument("--brain", default=None, help="core brain JSON to load/save")
     w.add_argument("--history", default=None, help="anomaly ledger JSON to append to")
+    w.add_argument("--recurrence", default=None,
+                   help="recurrence-state JSON to load/save (windowed action counts)")
     w.add_argument("--preset", default=None,
                    help="scoring preset (default|sequence_aware|novelty_only|sensitive)")
     w.add_argument("--json", action="store_true", help="emit JSON lines")
@@ -193,6 +228,13 @@ def build_parser() -> argparse.ArgumentParser:
                    help="pattern look-back in weeks (default: all history)")
     r.add_argument("--json", action="store_true", help="emit JSON")
     r.set_defaults(func=_cmd_report)
+
+    rc = sub.add_parser("recurrence",
+                        help="print recurrence findings from a saved recurrence state")
+    rc.add_argument("--recurrence", default=None,
+                    help="recurrence-state JSON produced by `watch --recurrence PATH`")
+    rc.add_argument("--json", action="store_true", help="emit JSON")
+    rc.set_defaults(func=_cmd_recurrence)
 
     d = sub.add_parser("dashboard", help="render the ledger to self-contained HTML")
     d.add_argument("--history", default=None, help="anomaly ledger JSON to read")

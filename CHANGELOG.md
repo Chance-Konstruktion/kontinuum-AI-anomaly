@@ -6,6 +6,21 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- **Recurrence detection** (`recurrence.py`, `RecurrenceDetector`) — closes the
+  last functional gap: novelty fires exactly once, so recurring misbehaviour
+  disappeared from the radar after its first occurrence. The detector keeps
+  **time-windowed counts of every observed action** (not only flagged ones,
+  bounded by a ring buffer) and derives three periodic signals with
+  `[recurrence] …` reasons: `new action established` (recently-new action now
+  firing frequently — the core case), `rate spike` (known action far above its
+  own median + k·MAD baseline), and `gone silent` (a regular action absent from
+  the current window). Wired into `AnomalyWatch` via `check_recurrence()` /
+  `recurrence_report()` / `route_recurrence()`, fed from every `observe()`
+  **without changing the live per-event verdict or its false-alarm rate**.
+  Persisted via `recurrence_path` and exposed as a new `recurrence` CLI command.
+
 ### Fixed
 
 - **Per-version Python trove classifiers** (`3.9`–`3.12`) added to
