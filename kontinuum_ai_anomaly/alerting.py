@@ -19,7 +19,7 @@ from typing import Any, Callable, Dict, List, Optional, Protocol
 
 from .history import AnomalyRecord
 
-logger = logging.getLogger("ai_kontinuum_monitor.alerting")
+logger = logging.getLogger("kontinuum_ai_anomaly.alerting")
 
 
 def _now() -> datetime:

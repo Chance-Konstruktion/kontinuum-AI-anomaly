@@ -1,9 +1,9 @@
 # kontinuum-AI-anomaly
 
 [![CI](https://github.com/Chance-Konstruktion/kontinuum-AI-anomaly/actions/workflows/ci.yml/badge.svg)](https://github.com/Chance-Konstruktion/kontinuum-AI-anomaly/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/ai-kontinuum-monitor.svg)](https://pypi.org/project/ai-kontinuum-monitor/)
-[![Python versions](https://img.shields.io/pypi/pyversions/ai-kontinuum-monitor.svg)](https://pypi.org/project/ai-kontinuum-monitor/)
-[![Downloads](https://img.shields.io/pypi/dm/ai-kontinuum-monitor.svg)](https://pypi.org/project/ai-kontinuum-monitor/)
+[![PyPI](https://img.shields.io/pypi/v/kontinuum-AI-anomaly.svg)](https://pypi.org/project/kontinuum-AI-anomaly/)
+[![Python versions](https://img.shields.io/pypi/pyversions/kontinuum-AI-anomaly.svg)](https://pypi.org/project/kontinuum-AI-anomaly/)
+[![Downloads](https://img.shields.io/pypi/dm/kontinuum-AI-anomaly.svg)](https://pypi.org/project/kontinuum-AI-anomaly/)
 [![kontinuum-core](https://img.shields.io/badge/kontinuum--core-%E2%89%A50.6.3-4c1.svg)](https://github.com/Chance-Konstruktion/kontinuum-core)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 
@@ -48,7 +48,7 @@ adds exactly the parts core deliberately leaves out:
 ## Install
 
 ```bash
-pip install ai-kontinuum-monitor
+pip install kontinuum-AI-anomaly
 ```
 
 Requires Python ≥ 3.9 and `kontinuum-core >= 0.6.3` (pulled in automatically).
@@ -58,7 +58,7 @@ Requires Python ≥ 3.9 and `kontinuum-core >= 0.6.3` (pulled in automatically).
 ## Quick start
 
 ```python
-from ai_kontinuum_monitor import AnomalyWatch
+from kontinuum_ai_anomaly import AnomalyWatch
 
 watch = AnomalyWatch(agent_id="openclaw")
 
@@ -89,7 +89,7 @@ Each `observe()` returns an `AnomalyScore` with: `action`, `is_anomaly`,
 ## Alerting into your agent
 
 ```python
-from ai_kontinuum_monitor import AnomalyWatch, AlertRouter, WebhookSink, LogSink
+from kontinuum_ai_anomaly import AnomalyWatch, AlertRouter, WebhookSink, LogSink
 
 watch = AnomalyWatch(
     agent_id="openclaw",
@@ -117,16 +117,16 @@ it prints is measured from real input — it never fabricates a metric.
 
 ```bash
 # Stream actions (one per line) and report what's flagged + the real metrics.
-python -m ai_kontinuum_monitor watch actions.txt --history anomaly_history.json
+python -m kontinuum_ai_anomaly watch actions.txt --history anomaly_history.json
 
 # Print the ledger's real summary + long-horizon patterns.
-python -m ai_kontinuum_monitor report --history anomaly_history.json
+python -m kontinuum_ai_anomaly report --history anomaly_history.json
 
 # Render the ledger to a self-contained HTML dashboard.
-python -m ai_kontinuum_monitor dashboard --history anomaly_history.json --out dash.html
+python -m kontinuum_ai_anomaly dashboard --history anomaly_history.json --out dash.html
 ```
 
-`ai-kontinuum-monitor` is also installed as a console script.
+`kontinuum-AI-anomaly` is also installed as a console script.
 
 ---
 

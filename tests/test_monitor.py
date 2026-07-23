@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from ai_kontinuum_monitor import AgentMonitor, slug
+from kontinuum_ai_anomaly import AgentMonitor, slug
 
 
 def test_slug_is_token_safe():

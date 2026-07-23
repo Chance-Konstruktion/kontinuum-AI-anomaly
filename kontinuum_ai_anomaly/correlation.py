@@ -1,7 +1,7 @@
 """Multi-agent / cross-stream correlation.
 
 GrokAI's "Multi-Agent / Cross-Stream Correlation (Anomalien zwischen mehreren
-Agenten)". A single :class:`~ai_kontinuum_monitor.watch.AnomalyWatch` judges one
+Agenten)". A single :class:`~kontinuum_ai_anomaly.watch.AnomalyWatch` judges one
 agent in isolation. When several agents run together, the interesting signal is
 often *coincidence*: two agents going anomalous within seconds of each other is
 far more suspicious than either alone (a shared upstream fault, a cascading

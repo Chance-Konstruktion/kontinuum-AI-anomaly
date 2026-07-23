@@ -47,10 +47,10 @@ jobs:
 
       - name: Show resolved versions
         run: |
-          python -c "import sys, kontinuum_core, ai_kontinuum_monitor as m; \
+          python -c "import sys, kontinuum_core, kontinuum_ai_anomaly as m; \
             print('python', sys.version.split()[0]); \
             print('kontinuum-core', kontinuum_core.__version__ if hasattr(kontinuum_core,'__version__') else '?'); \
-            print('ai-kontinuum-monitor', m.__version__)"
+            print('kontinuum-AI-anomaly', m.__version__)"
 
       - name: Run tests
         run: pytest -q

@@ -1,9 +1,9 @@
 # kontinuum-AI-anomaly
 
 [![CI](https://github.com/Chance-Konstruktion/kontinuum-AI-anomaly/actions/workflows/ci.yml/badge.svg)](https://github.com/Chance-Konstruktion/kontinuum-AI-anomaly/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/ai-kontinuum-monitor.svg)](https://pypi.org/project/ai-kontinuum-monitor/)
-[![Python versions](https://img.shields.io/pypi/pyversions/ai-kontinuum-monitor.svg)](https://pypi.org/project/ai-kontinuum-monitor/)
-[![Downloads](https://img.shields.io/pypi/dm/ai-kontinuum-monitor.svg)](https://pypi.org/project/ai-kontinuum-monitor/)
+[![PyPI](https://img.shields.io/pypi/v/kontinuum-AI-anomaly.svg)](https://pypi.org/project/kontinuum-AI-anomaly/)
+[![Python versions](https://img.shields.io/pypi/pyversions/kontinuum-AI-anomaly.svg)](https://pypi.org/project/kontinuum-AI-anomaly/)
+[![Downloads](https://img.shields.io/pypi/dm/kontinuum-AI-anomaly.svg)](https://pypi.org/project/kontinuum-AI-anomaly/)
 [![kontinuum-core](https://img.shields.io/badge/kontinuum--core-%E2%89%A50.6.3-4c1.svg)](https://github.com/Chance-Konstruktion/kontinuum-core)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 
@@ -51,7 +51,7 @@ bewusst weglässt:
 ## Installation
 
 ```bash
-pip install ai-kontinuum-monitor
+pip install kontinuum-AI-anomaly
 ```
 
 Benötigt Python ≥ 3.9 und `kontinuum-core >= 0.6.3` (wird automatisch mitgezogen).
@@ -61,7 +61,7 @@ Benötigt Python ≥ 3.9 und `kontinuum-core >= 0.6.3` (wird automatisch mitgezo
 ## Schnellstart
 
 ```python
-from ai_kontinuum_monitor import AnomalyWatch
+from kontinuum_ai_anomaly import AnomalyWatch
 
 watch = AnomalyWatch(agent_id="openclaw")
 
@@ -92,7 +92,7 @@ Jedes `observe()` gibt ein `AnomalyScore` zurück mit: `action`, `is_anomaly`,
 ## Alerting in deinen Agenten
 
 ```python
-from ai_kontinuum_monitor import AnomalyWatch, AlertRouter, WebhookSink, LogSink
+from kontinuum_ai_anomaly import AnomalyWatch, AlertRouter, WebhookSink, LogSink
 
 watch = AnomalyWatch(
     agent_id="openclaw",

@@ -1,7 +1,7 @@
 """Scoring strategies — the robust anomaly verdict layer.
 
 Core gives a per-event ``surprise`` and a raw ``anomaly`` flag, but that flag is
-jittery on short runs (see :mod:`ai_kontinuum_monitor.monitor`). This layer sits
+jittery on short runs (see :mod:`kontinuum_ai_anomaly.monitor`). This layer sits
 *on top* and turns the raw signal into a stable verdict, which is the first
 reason this package earns its own existence:
 

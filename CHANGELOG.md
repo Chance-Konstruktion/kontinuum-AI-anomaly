@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to `ai-kontinuum-monitor` are documented here. The format
+All notable changes to `kontinuum-AI-anomaly` are documented here. The format
 follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 [Semantic Versioning](https://semver.org/).
 
@@ -15,8 +15,8 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 - **PyPI publish workflow** (`.github/workflows/publish.yml`) — builds on a `v*`
   tag push and uploads via OIDC Trusted Publishing (no stored token). Closes the
   gap where a tagged release never actually reached PyPI.
-- **Command-line interface** (`cli.py` / `python -m ai_kontinuum_monitor`, also
-  the `ai-kontinuum-monitor` console script) — `watch` streams actions through
+- **Command-line interface** (`cli.py` / `python -m kontinuum_ai_anomaly`, also
+  the `kontinuum-AI-anomaly` console script) — `watch` streams actions through
   the pipeline and prints the run's real metrics, `report` prints a ledger's real
   `summary()`/`patterns()`, `dashboard` renders the ledger to HTML. Every number
   is measured from real input.
@@ -49,11 +49,22 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
   (`AGPL-3.0-or-later`), fixing `twine check` on the built distributions
   (requires `setuptools>=77` at build time).
 
+### Changed
+
+- **Renamed the package to `kontinuum-AI-anomaly`** to match the repository. The
+  PyPI distribution (`kontinuum-AI-anomaly`), the import package
+  (`ai_kontinuum_monitor` → `kontinuum_ai_anomaly`), and the console script are
+  now all one name. Update imports to `from kontinuum_ai_anomaly import …` and
+  invoke the module as `python -m kontinuum_ai_anomaly`.
+- **First release is experimental (alpha).** Tagged `v0.1.0a1` and marked
+  `Development Status :: 3 - Alpha`; PyPI treats it as a pre-release
+  (`pip install` needs `--pre` to pick it up).
+
 ### Fixed
 
 - **Install command** in both READMEs pointed at the repository name
   (`kontinuum-AI-anomaly`) instead of the actual PyPI distribution name — it now
-  reads `pip install ai-kontinuum-monitor`. The stated `kontinuum-core`
+  reads `pip install kontinuum-AI-anomaly`. The stated `kontinuum-core`
   requirement (`>= 0.6.2`) was also brought in line with `pyproject.toml`
   (`>= 0.6.3`).
 - **Documented the release process** in `CONTRIBUTING.md`: tag-driven versioning

@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from ai_kontinuum_monitor import cli
+from kontinuum_ai_anomaly import cli
 
 
 def _write(tmp_path, name, text):

@@ -6,7 +6,7 @@ anomalies back to the bot, and render a dashboard.
 ## 1. Wire up the pipeline
 
 ```python
-from ai_kontinuum_monitor import (
+from kontinuum_ai_anomaly import (
     AnomalyWatch, AlertRouter, LogSink, WebhookSink, CallbackSink,
 )
 
@@ -58,7 +58,7 @@ print(watch.stream_stats())   # per-action observation / anomaly rollups
 ## 4. Render a dashboard
 
 ```python
-from ai_kontinuum_monitor import render_dashboard
+from kontinuum_ai_anomaly import render_dashboard
 
 with open("dashboard.html", "w") as fh:
     fh.write(render_dashboard(watch.history, days=7))
@@ -73,7 +73,7 @@ The default verdict is **novelty OR per-stream adaptive threshold**. To
 customize:
 
 ```python
-from ai_kontinuum_monitor import (
+from kontinuum_ai_anomaly import (
     AnomalyWatch, CompositeStrategy, NoveltyStrategy, AdaptiveThresholdStrategy,
 )
 
@@ -118,7 +118,7 @@ All of these live in this package; `kontinuum-core` is untouched.
 Catch an action arriving in an unexpected *order* (not just a novel action):
 
 ```python
-from ai_kontinuum_monitor import AnomalyWatch, sequence_aware_strategy
+from kontinuum_ai_anomaly import AnomalyWatch, sequence_aware_strategy
 
 watch = AnomalyWatch("openclaw", strategy=sequence_aware_strategy())
 # novelty OR per-stream adaptive OR first-order transition model
@@ -131,7 +131,7 @@ predecessor is seen `min_context` times, a rare/never-seen transition is flagged
 ### Multi-agent / cross-stream correlation
 
 ```python
-from ai_kontinuum_monitor import MultiAgentWatch
+from kontinuum_ai_anomaly import MultiAgentWatch
 
 maw = MultiAgentWatch(window_seconds=60)
 maw.observe("botA", "escalate")
@@ -146,7 +146,7 @@ surface as clusters — the shared-fault signal a single watch can't see.
 ### Strategy presets (export / import)
 
 ```python
-from ai_kontinuum_monitor import builtin_presets, save_preset, load_preset
+from kontinuum_ai_anomaly import builtin_presets, save_preset, load_preset
 
 save_preset(builtin_presets()["sensitive"], "preset.json", name="sensitive")
 strategy = load_preset("preset.json")     # safe declarative JSON, no pickled code
@@ -156,7 +156,7 @@ watch = AnomalyWatch("openclaw", strategy=strategy)
 ### Alerting: escalation levels + snooze
 
 ```python
-from ai_kontinuum_monitor import AlertRouter, LogSink, WebhookSink
+from kontinuum_ai_anomaly import AlertRouter, LogSink, WebhookSink
 
 router = AlertRouter([
     (LogSink(), "info"),                      # everything
@@ -171,7 +171,7 @@ router.snooze("flappy_action", seconds=3600)  # mute a known-noisy stream for 1h
 ### LLM feedback loop
 
 ```python
-from ai_kontinuum_monitor import AlertRouter, LLMFeedbackSink
+from kontinuum_ai_anomaly import AlertRouter, LLMFeedbackSink
 
 def ask_model(prompt: str) -> str:
     ...  # wrap the Anthropic SDK / any client; provider-agnostic

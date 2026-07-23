@@ -1,8 +1,8 @@
 """Dashboard rendering: self-contained HTML, escaping, metric cards."""
 from datetime import datetime, timezone
 
-from ai_kontinuum_monitor import render_dashboard
-from ai_kontinuum_monitor.history import AnomalyHistory, AnomalyRecord
+from kontinuum_ai_anomaly import render_dashboard
+from kontinuum_ai_anomaly.history import AnomalyHistory, AnomalyRecord
 
 
 def _rec(action="act", *, novel=False, score=0.6, surprise=0.6, reasons=None):

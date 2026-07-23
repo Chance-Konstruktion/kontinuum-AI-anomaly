@@ -26,7 +26,7 @@ body:
   - type: input
     id: pkg-version
     attributes:
-      label: ai-kontinuum-monitor version
+      label: kontinuum-AI-anomaly version
       placeholder: "e.g. 0.6.2"
     validations:
       required: true

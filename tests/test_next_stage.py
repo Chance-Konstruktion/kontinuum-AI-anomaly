@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from ai_kontinuum_monitor import (
+from kontinuum_ai_anomaly import (
     AlertRouter,
     AnomalyHistory,
     AnomalyRecord,

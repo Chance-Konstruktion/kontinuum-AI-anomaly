@@ -1,4 +1,4 @@
-"""Command-line interface — ``python -m ai_kontinuum_monitor``.
+"""Command-line interface — ``python -m kontinuum_ai_anomaly``.
 
 Three subcommands, all of which print only *measured* numbers — nothing here
 fabricates a metric it did not compute from real input:
@@ -167,7 +167,7 @@ def _cmd_dashboard(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="ai_kontinuum_monitor",
+        prog="kontinuum_ai_anomaly",
         description="Anomaly / novelty monitor for agent action streams.",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
