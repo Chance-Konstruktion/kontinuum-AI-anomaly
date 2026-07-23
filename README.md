@@ -3,6 +3,8 @@
 [![CI](https://github.com/Chance-Konstruktion/kontinuum-AI-anomaly/actions/workflows/ci.yml/badge.svg)](https://github.com/Chance-Konstruktion/kontinuum-AI-anomaly/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/ai-kontinuum-monitor.svg)](https://pypi.org/project/ai-kontinuum-monitor/)
 [![Python versions](https://img.shields.io/pypi/pyversions/ai-kontinuum-monitor.svg)](https://pypi.org/project/ai-kontinuum-monitor/)
+[![Downloads](https://img.shields.io/pypi/dm/ai-kontinuum-monitor.svg)](https://pypi.org/project/ai-kontinuum-monitor/)
+[![kontinuum-core](https://img.shields.io/badge/kontinuum--core-%E2%89%A50.6.3-4c1.svg)](https://github.com/Chance-Konstruktion/kontinuum-core)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 
 **A novelty & anomaly monitor for agent action streams.**

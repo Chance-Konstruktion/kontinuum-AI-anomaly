@@ -19,11 +19,11 @@ jobs:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
         # Two core versions on purpose: 0.6.0 predates get_diagnostics() and so
-        # exercises the hasattr-guard / graceful-degradation path, while 0.6.2 is
+        # exercises the hasattr-guard / graceful-degradation path, while 0.6.3 is
         # the modern path this package pins. The version-matrix skew is exactly
         # what broke releases before there was CI (SPEC.md §5.1) — this keeps
         # both paths permanently green.
-        core-version: ["0.6.0", "0.6.2"]
+        core-version: ["0.6.0", "0.6.3"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -41,7 +41,7 @@ jobs:
           pip install ".[dev]"
 
       - name: Pin kontinuum-core for this matrix leg
-        # Explicitly override the >=0.6.2 pin so the old-core guard path is
+        # Explicitly override the >=0.6.3 pin so the old-core guard path is
         # actually tested. pip honours the exact requested version.
         run: pip install "kontinuum-core==${{ matrix.core-version }}"
 

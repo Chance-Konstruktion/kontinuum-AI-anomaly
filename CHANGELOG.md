@@ -9,7 +9,7 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 ### Added
 
 - **CI** (`.github/workflows/ci.yml`) — test matrix across Python 3.9–3.12 **and**
-  two `kontinuum-core` versions (`0.6.0` guard-path, `0.6.2` modern path), so the
+  two `kontinuum-core` versions (`0.6.0` guard-path, `0.6.3` modern path), so the
   version skew that broke releases before is now caught automatically. Plus a
   build job that `twine check`s the sdist/wheel.
 - **PyPI publish workflow** (`.github/workflows/publish.yml`) — builds on a `v*`
@@ -29,10 +29,13 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 
 ### Changed
 
-- Require **kontinuum-core >= 0.6.2** (was `>=0.6.0`), aligning with the rest of
-  the KONTINUUM family. 0.6.2 is the PyPI release that ships `get_diagnostics()`,
-  so the observable-ingestion counters are now guaranteed present (the call
-  stays `hasattr`-guarded for robustness).
+- Require **kontinuum-core >= 0.6.3** (was `>=0.6.0`), aligning with the rest of
+  the KONTINUUM family on the current PyPI release. `get_diagnostics()` landed in
+  0.6.2, so the observable-ingestion counters are guaranteed present (the call
+  stays `hasattr`-guarded for robustness), and the CI matrix now exercises the
+  `0.6.3` modern path alongside the `0.6.0` guard path.
+- Expanded the README badge row (Downloads, `kontinuum-core` version) and added
+  the same real, clickable badge set to the German README (`README.de.md`).
 - **Normalized `learning_state`** — `AnomalyScorer.metrics()` now reports core's
   maturity label collapsed onto one canonical `cold_start`/`warming`/`mature`
   scale (`normalize_learning_state()`), with the verbatim label preserved as
