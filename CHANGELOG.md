@@ -6,6 +6,13 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- **Per-version Python trove classifiers** (`3.9`–`3.12`) added to
+  `pyproject.toml`. Only `Programming Language :: Python :: 3` was declared, so
+  the PyPI `pyversions` README badge had no per-minor data to show. Takes effect
+  with the next published release.
+
 ### Added
 
 - **CI** (`.github/workflows/ci.yml`) — test matrix across Python 3.9–3.12 **and**
