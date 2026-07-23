@@ -1,9 +1,9 @@
 # kontinuum-AI-anomaly
 
 [![CI](https://github.com/Chance-Konstruktion/kontinuum-AI-anomaly/actions/workflows/ci.yml/badge.svg)](https://github.com/Chance-Konstruktion/kontinuum-AI-anomaly/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/kontinuum-AI-anomaly.svg)](https://pypi.org/project/kontinuum-AI-anomaly/)
-[![Python versions](https://img.shields.io/pypi/pyversions/kontinuum-AI-anomaly.svg)](https://pypi.org/project/kontinuum-AI-anomaly/)
-[![Downloads](https://img.shields.io/pypi/dm/kontinuum-AI-anomaly.svg)](https://pypi.org/project/kontinuum-AI-anomaly/)
+[![PyPI](https://img.shields.io/pypi/v/kontinuum-ai-anomaly.svg)](https://pypi.org/project/kontinuum-AI-anomaly/)
+[![Python versions](https://img.shields.io/pypi/pyversions/kontinuum-ai-anomaly.svg)](https://pypi.org/project/kontinuum-AI-anomaly/)
+[![Downloads](https://img.shields.io/pypi/dm/kontinuum-ai-anomaly.svg)](https://pypi.org/project/kontinuum-AI-anomaly/)
 [![kontinuum-core](https://img.shields.io/badge/kontinuum--core-%E2%89%A50.6.3-4c1.svg)](https://github.com/Chance-Konstruktion/kontinuum-core)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 
