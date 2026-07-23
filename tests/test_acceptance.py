@@ -4,7 +4,7 @@ Feed the rhythm ``plan → act → observe → reflect → done`` ~20 times, the
 a never-seen action ``escalate``. ``escalate`` must be anomalous; the rehearsed
 actions must not be.
 """
-from ai_kontinuum_monitor import AnomalyWatch
+from kontinuum_ai_anomaly import AnomalyWatch
 
 RHYTHM = ["plan", "act", "observe", "reflect", "done"]
 

@@ -1,5 +1,5 @@
 """Scoring strategies: novelty, per-stream adaptive threshold, composition."""
-from ai_kontinuum_monitor.scoring import (
+from kontinuum_ai_anomaly.scoring import (
     AdaptiveThresholdStrategy,
     AnomalyScorer,
     CompositeStrategy,

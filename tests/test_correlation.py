@@ -1,7 +1,7 @@
 """Cross-stream correlation: temporal co-occurrence and multi-agent clusters."""
 from datetime import datetime, timedelta, timezone
 
-from ai_kontinuum_monitor import (
+from kontinuum_ai_anomaly import (
     CorrelatedEvent,
     CrossStreamCorrelator,
     MultiAgentWatch,

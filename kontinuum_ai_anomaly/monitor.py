@@ -11,7 +11,7 @@ Honest limitations (SPEC.md §2):
 * **Sequence / order anomalies are weak on short runs.** The engine stays in
   ``cold_start`` under 100 events and the raw per-event ``anomaly`` flag from
   core is jittery below a few hundred events, so it should be treated as an
-  advisory signal, not ground truth. The :mod:`ai_kontinuum_monitor.scoring`
+  advisory signal, not ground truth. The :mod:`kontinuum_ai_anomaly.scoring`
   layer exists to turn that jittery raw signal into a robust verdict.
 * This is an **observer, not training** — it never changes the agent's own LLM.
 """

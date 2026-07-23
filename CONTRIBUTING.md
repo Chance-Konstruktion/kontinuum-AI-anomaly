@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in `ai-kontinuum-monitor`. This is a small, focused
+Thanks for your interest in `kontinuum-AI-anomaly`. This is a small, focused
 package; contributions that keep it that way — a thin, honest layer over
 `kontinuum-core` — are very welcome.
 
@@ -60,6 +60,42 @@ pattern) so the same suite stays green across the matrix.
 Use the issue templates. For anything touching ingestion, please include your
 `kontinuum-core` version and the output of `AgentMonitor(...).diagnostics()` —
 it saves a lot of back-and-forth.
+
+## Releasing (maintainers)
+
+Releases are automated — there is **no** version string to bump and **no** PyPI
+token to manage.
+
+- **Version comes from the Git tag.** `setuptools-scm` derives the package
+  version from the tag, so the artifact you build is exactly the tag you push.
+- **Publishing uses OIDC Trusted Publishing.** `.github/workflows/publish.yml`
+  authenticates GitHub Actions to PyPI directly (no stored secret). This
+  requires a one-time setup on PyPI: under the project's *Publishing* settings,
+  register a trusted publisher pointing at repo
+  `Chance-Konstruktion/kontinuum-AI-anomaly`, workflow file `publish.yml`, and
+  environment `pypi`. (For the very first release, add it as a *pending*
+  publisher before the tag is pushed.)
+
+To cut a release:
+
+1. Make sure `main` is green and `CHANGELOG.md` has the new version's notes
+   (move the `[Unreleased]` entries under a `## [X.Y.Z]` heading).
+2. Tag and push:
+
+   ```bash
+   git tag vX.Y.Z        # e.g. v0.1.0a1 for the first experimental/alpha release
+   git push origin vX.Y.Z
+   ```
+
+   Versions must be [PEP 440](https://peps.python.org/pep-0440/)-valid — use a
+   pre-release suffix (`a1`, `b1`, `rc1`) or `.devN` for experimental builds;
+   words like `experimental` are not valid and PyPI will reject them.
+
+3. The publish workflow builds the sdist + wheel, runs `twine check`, and
+   uploads to PyPI. Watch the run under **Actions → Publish to PyPI**.
+
+The PyPI project name, the import package (`kontinuum_ai_anomaly`), the console
+script, and the repository all share the name **`kontinuum-AI-anomaly`**.
 
 ## License
 

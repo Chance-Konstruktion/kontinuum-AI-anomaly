@@ -6,10 +6,11 @@ requires = ["setuptools>=77", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ai-kontinuum-monitor"
+name = "kontinuum-AI-anomaly"
 # Version is derived from the Git tag by setuptools-scm (see [tool.setuptools_scm]
 # below), matching kontinuum-core. Tag `vX.Y.Z` and build — no hardcoded string
-# to bump. Building without a tag yields a dev version; tag `v0.2.0` to release.
+# to bump. Building without a tag yields a dev version; tag `v0.1.0a1` for the
+# first (experimental / alpha) release.
 dynamic = ["version"]
 authors = [{name = "Chance-Konstruktion", email = "introareback@gmail.com"}]
 description = "Anomaly / novelty monitor for agent action streams, built on kontinuum-core"
@@ -21,6 +22,7 @@ license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
 requires-python = ">=3.9"
 classifiers = [
+    "Development Status :: 3 - Alpha",
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
@@ -37,7 +39,7 @@ dependencies = [
 dev = ["pytest>=7"]
 
 [project.scripts]
-ai-kontinuum-monitor = "ai_kontinuum_monitor.cli:main"
+kontinuum-AI-anomaly = "kontinuum_ai_anomaly.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/Chance-Konstruktion/kontinuum-AI-anomaly"
@@ -45,15 +47,15 @@ Issues = "https://github.com/Chance-Konstruktion/kontinuum-AI-anomaly/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["ai_kontinuum_monitor*"]
+include = ["kontinuum_ai_anomaly*"]
 
 [tool.setuptools.package-data]
-ai_kontinuum_monitor = ["py.typed"]
+kontinuum_ai_anomaly = ["py.typed"]
 
 [tool.setuptools_scm]
 # Write the resolved version to an importable file so runtime __version__ and
 # the built package metadata always agree. The file is generated (git-ignored).
-version_file = "ai_kontinuum_monitor/_version.py"
+version_file = "kontinuum_ai_anomaly/_version.py"
 # Build outside a Git checkout with no tags/metadata falls back rather than
 # hard-failing.
 fallback_version = "0.0.0"

@@ -4,7 +4,7 @@ A compact tour of the public surface. Everything below is importable directly
 from the top-level package:
 
 ```python
-from ai_kontinuum_monitor import AnomalyWatch, AlertRouter, LogSink  # etc.
+from kontinuum_ai_anomaly import AnomalyWatch, AlertRouter, LogSink  # etc.
 ```
 
 For a runnable walk-through see [`USAGE.md`](USAGE.md); for *why* the scorer
@@ -168,7 +168,7 @@ optionally with learning-progress and surprise-trend cards from `metrics`.
 
 ## CLI
 
-`python -m ai_kontinuum_monitor` (or the `ai-kontinuum-monitor` console script):
+`python -m kontinuum_ai_anomaly` (or the `kontinuum-AI-anomaly` console script):
 
 | Command | What it does |
 |---|---|

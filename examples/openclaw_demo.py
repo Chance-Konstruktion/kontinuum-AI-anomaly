@@ -3,7 +3,7 @@
 Run:  python examples/openclaw_demo.py
 Then open the printed dashboard path in a browser.
 """
-from ai_kontinuum_monitor import AlertRouter, AnomalyWatch, LogSink, render_dashboard
+from kontinuum_ai_anomaly import AlertRouter, AnomalyWatch, LogSink, render_dashboard
 
 RHYTHM = ["plan", "act", "observe", "reflect", "done"]
 

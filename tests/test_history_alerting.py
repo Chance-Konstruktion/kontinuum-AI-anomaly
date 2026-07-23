@@ -1,7 +1,7 @@
 """Anomaly history, persistence, alert routing and the dashboard."""
 from datetime import datetime, timedelta, timezone
 
-from ai_kontinuum_monitor import (
+from kontinuum_ai_anomaly import (
     AlertRouter,
     AnomalyHistory,
     AnomalyRecord,
@@ -9,7 +9,7 @@ from ai_kontinuum_monitor import (
     LogSink,
     render_dashboard,
 )
-from ai_kontinuum_monitor.scoring import AnomalyScore
+from kontinuum_ai_anomaly.scoring import AnomalyScore
 
 
 def _score(action="deploy", novel=True):

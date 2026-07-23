@@ -1,8 +1,8 @@
 """LLM feedback sink: prompt construction, cost cap, error isolation."""
 from datetime import datetime, timezone
 
-from ai_kontinuum_monitor import LLMFeedbackSink, build_prompt
-from ai_kontinuum_monitor.history import AnomalyRecord
+from kontinuum_ai_anomaly import LLMFeedbackSink, build_prompt
+from kontinuum_ai_anomaly.history import AnomalyRecord
 
 
 def _rec(**over):

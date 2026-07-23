@@ -1,4 +1,4 @@
-"""ai-kontinuum-monitor — an anomaly / novelty monitor for agent action streams.
+"""kontinuum-AI-anomaly — an anomaly / novelty monitor for agent action streams.
 
 A thin, additive layer over `kontinuum-core` (which stays untouched), plus the
 things core deliberately does *not* do and this package adds on top:
@@ -57,7 +57,7 @@ except Exception:  # pragma: no cover - source tree without a built _version.py
         from importlib.metadata import PackageNotFoundError, version as _pkg_version
 
         try:
-            __version__ = _pkg_version("ai-kontinuum-monitor")
+            __version__ = _pkg_version("kontinuum-AI-anomaly")
         except PackageNotFoundError:
             __version__ = "0.0.0"
     except Exception:

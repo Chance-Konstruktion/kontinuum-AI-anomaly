@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from ai_kontinuum_monitor import (
+from kontinuum_ai_anomaly import (
     AdaptiveThresholdStrategy,
     CompositeStrategy,
     NoveltyStrategy,
@@ -15,7 +15,7 @@ from ai_kontinuum_monitor import (
     save_preset,
     sequence_aware_strategy,
 )
-from ai_kontinuum_monitor.presets import PRESET_VERSION, strategy_to_spec
+from kontinuum_ai_anomaly.presets import PRESET_VERSION, strategy_to_spec
 
 
 def test_roundtrip_composite_preserves_params():

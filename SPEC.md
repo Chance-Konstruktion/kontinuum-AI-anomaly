@@ -1,4 +1,4 @@
-# ai-kontinuum-monitor — Build Spec
+# kontinuum-AI-anomaly — Build Spec
 
 Adapter that uses **kontinuum-core** as an anomaly / novelty monitor over an
 **agent action stream** (e.g. an openclaw bot), instead of a smart-home event
@@ -29,7 +29,7 @@ is described here.
 
 ## 1. What to build
 
-A module `ai_kontinuum_monitor/monitor.py` exposing an `AgentMonitor` class that
+A module `kontinuum_ai_anomaly/monitor.py` exposing an `AgentMonitor` class that
 hides the token-granularity mechanics so callers just log named actions.
 
 ```

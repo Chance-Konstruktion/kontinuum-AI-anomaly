@@ -9,7 +9,7 @@ This module stays provider-agnostic and dependency-free. You supply a callable
 ``llm(prompt: str) -> str`` (wrapping whatever client you use — the Anthropic
 SDK, a local model, a stub in tests); the sink builds a compact prompt from the
 anomaly and optional live engine context and calls it. It is an
-:class:`~ai_kontinuum_monitor.alerting.AlertSink`, so it drops straight into an
+:class:`~kontinuum_ai_anomaly.alerting.AlertSink`, so it drops straight into an
 ``AlertRouter`` alongside log / webhook sinks.
 """
 from __future__ import annotations
@@ -20,7 +20,7 @@ from typing import Any, Callable, Dict, List, Optional
 from .alerting import escalation_level
 from .history import AnomalyRecord
 
-logger = logging.getLogger("ai_kontinuum_monitor.feedback")
+logger = logging.getLogger("kontinuum_ai_anomaly.feedback")
 
 # What the caller wires in: prompt in, model reply out. Any exception is caught
 # by the sink so a flaky model call can never break alert routing.
