@@ -1,0 +1,10 @@
+ai-kontinuum-monitor
+Copyright (C) 2026 Chance-Konstruktion
+
+This program is licensed under the GNU Affero General Public License v3.0;
+see the LICENSE file for the full text.
+
+It imports kontinuum-core, which is AGPL-3.0; the copyleft and network-use
+obligations propagate to this package, so it is licensed AGPL-3.0 as well
+(see SPEC.md §5.2). This is a deliberate choice, not a default. Not legal
+advice.
