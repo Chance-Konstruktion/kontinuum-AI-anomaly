@@ -48,10 +48,10 @@ adds exactly the parts core deliberately leaves out:
 ## Install
 
 ```bash
-pip install kontinuum-AI-anomaly
+pip install ai-kontinuum-monitor
 ```
 
-Requires Python ≥ 3.9 and `kontinuum-core >= 0.6.2` (pulled in automatically).
+Requires Python ≥ 3.9 and `kontinuum-core >= 0.6.3` (pulled in automatically).
 
 ---
 

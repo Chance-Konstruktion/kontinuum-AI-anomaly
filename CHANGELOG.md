@@ -49,6 +49,17 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
   (`AGPL-3.0-or-later`), fixing `twine check` on the built distributions
   (requires `setuptools>=77` at build time).
 
+### Fixed
+
+- **Install command** in both READMEs pointed at the repository name
+  (`kontinuum-AI-anomaly`) instead of the actual PyPI distribution name — it now
+  reads `pip install ai-kontinuum-monitor`. The stated `kontinuum-core`
+  requirement (`>= 0.6.2`) was also brought in line with `pyproject.toml`
+  (`>= 0.6.3`).
+- **Documented the release process** in `CONTRIBUTING.md`: tag-driven versioning
+  via `setuptools-scm` and OIDC Trusted Publishing, including the one-time PyPI
+  trusted-publisher setup.
+
 ## [0.2.0] — Next-stage improvements
 
 Implements the next-stage improvement list (sequence-awareness, cross-stream

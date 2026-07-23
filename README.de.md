@@ -51,10 +51,10 @@ bewusst weglässt:
 ## Installation
 
 ```bash
-pip install kontinuum-AI-anomaly
+pip install ai-kontinuum-monitor
 ```
 
-Benötigt Python ≥ 3.9 und `kontinuum-core >= 0.6.2` (wird automatisch mitgezogen).
+Benötigt Python ≥ 3.9 und `kontinuum-core >= 0.6.3` (wird automatisch mitgezogen).
 
 ---
 
