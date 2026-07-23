@@ -11,6 +11,10 @@ things core deliberately does *not* do and this package adds on top:
 * a tiny HTML dashboard (:mod:`.dashboard`).
 * :class:`AnomalyWatch` — the orchestrator wiring all of the above together.
 """
+import importlib
+import importlib.util
+from importlib.metadata import PackageNotFoundError, version as _pkg_version
+
 from .alerting import (
     LEVELS,
     AlertRouter,
@@ -50,18 +54,13 @@ from .scoring import (
 )
 from .watch import AnomalyWatch
 
-try:
-    # Written at build time by setuptools-scm from the Git tag.
-    from ._version import version as __version__
-except Exception:  # pragma: no cover - source tree without a built _version.py
+_version_spec = importlib.util.find_spec(f"{__name__}._version")
+if _version_spec is not None:
+    __version__ = importlib.import_module(f"{__name__}._version").version
+else:
     try:
-        from importlib.metadata import PackageNotFoundError, version as _pkg_version
-
-        try:
-            __version__ = _pkg_version("kontinuum-AI-anomaly")
-        except PackageNotFoundError:
-            __version__ = "0.0.0"
-    except Exception:
+        __version__ = _pkg_version("kontinuum-AI-anomaly")
+    except PackageNotFoundError:
         __version__ = "0.0.0"
 
 __all__ = [
