@@ -6,6 +6,12 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 
 ## [Unreleased]
 
+## [0.1.0a3] — 2026-07-23
+
+First alpha to actually reach PyPI carrying the full feature set (the package
+rename, the per-version classifiers, and recurrence detection). Still a
+pre-release: `pip install --pre kontinuum-AI-anomaly`.
+
 ### Added
 
 - **Recurrence detection** (`recurrence.py`, `RecurrenceDetector`) — closes the
