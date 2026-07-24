@@ -105,7 +105,7 @@ class CallbackSink:
         try:
             self.callback(rec)
             return True
-        except Exception:  # noqa: BLE001 — a sink must never break routing
+        except Exception:  # a sink must never break routing
             logger.exception("CallbackSink handler raised")
             return False
 

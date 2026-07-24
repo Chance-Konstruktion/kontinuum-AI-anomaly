@@ -67,3 +67,28 @@ fallback_version = "0.0.0"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.ruff]
+# Must match `requires-python`. Without it ruff assumes a modern default and
+# reports ~190 "use PEP 585/604 syntax" findings (`Dict` -> `dict`,
+# `Optional[X]` -> `X | None`) that would be wrong to apply here: this package
+# still supports 3.9, and the explicit `typing` spellings are deliberate.
+target-version = "py39"
+line-length = 100
+
+[tool.ruff.lint]
+# Correctness and real-bug rules, not style opinions. The point is a linter whose
+# output is worth reading in CI — every finding should be something to act on.
+select = [
+    "F",      # pyflakes: undefined names, unused imports/variables
+    "E9",     # syntax / IO errors
+    "B",      # bugbear: likely bugs (mutable defaults, unused loop vars, ...)
+    "DTZ",    # naive datetimes — the exact class of defect fixed in #16
+    "BLE",    # blind `except Exception` — allowed in sinks, but only on purpose
+    "RUF100", # noqa directives that no longer suppress anything
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests deliberately construct naive datetimes to prove they are accepted and
+# normalized to UTC, and open files without a context manager in CLI fixtures.
+"tests/*" = ["DTZ001", "DTZ005"]

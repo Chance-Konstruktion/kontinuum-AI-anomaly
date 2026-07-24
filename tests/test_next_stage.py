@@ -7,7 +7,6 @@ All are additive layers over an untouched kontinuum-core.
 """
 from datetime import datetime, timedelta, timezone
 
-import pytest
 
 from kontinuum_ai_anomaly import (
     AlertRouter,
@@ -16,7 +15,6 @@ from kontinuum_ai_anomaly import (
     AnomalyScorer,
     CrossStreamCorrelator,
     LLMFeedbackSink,
-    LogSink,
     MultiAgentWatch,
     SequenceStrategy,
     builtin_presets,

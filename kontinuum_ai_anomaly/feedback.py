@@ -116,12 +116,12 @@ class LLMFeedbackSink:
         if self.context_provider is not None:
             try:
                 context = self.context_provider()
-            except Exception:  # noqa: BLE001 — context is best-effort
+            except Exception:  # context is best-effort
                 logger.exception("LLMFeedbackSink context_provider raised")
         prompt = build_prompt(rec, context=context, preamble=self.preamble)
         try:
             reply = self.llm(prompt)
-        except Exception:  # noqa: BLE001 — a sink must never break routing
+        except Exception:  # a sink must never break routing
             logger.exception("LLMFeedbackSink llm call raised")
             return False
         self.calls += 1
@@ -130,6 +130,6 @@ class LLMFeedbackSink:
         if self.on_reply is not None:
             try:
                 self.on_reply(rec, reply)
-            except Exception:  # noqa: BLE001
+            except Exception:  # on_reply is the caller's code; never break routing
                 logger.exception("LLMFeedbackSink on_reply raised")
         return True

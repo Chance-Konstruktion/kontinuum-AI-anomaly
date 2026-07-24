@@ -6,6 +6,58 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- **Lint + type checking in CI** (`lint` job). `ruff` and `mypy` are configured
+  in `pyproject.toml` and run on every push. `target-version = "py39"` matches
+  `requires-python`; without it ruff reported ~190 "use PEP 585/604 syntax"
+  findings that would be wrong to apply while 3.9 is supported. The rule
+  selection is correctness-focused (`F`, `E9`, `B`, `DTZ`, `BLE`, `RUF100`)
+  rather than stylistic, so a finding is always something to act on — `DTZ`
+  in particular guards the naive-datetime class of defect fixed below. The
+  package ships `py.typed`, so `mypy` keeps that promise honest.
+- **Tests for `WebhookSink`** — the only sink that leaves the process had no
+  coverage at all: constructor guard, all three payload templates (`generic` /
+  `slack` / `discord`), 2xx vs non-2xx handling, and the network-failure
+  contract (return `False`, never raise, don't stop other sinks). Plus the
+  previously untested `AlertRouter.add_sink` validation, `unsnooze`, and snooze
+  expiry. `alerting.py` coverage 84 % → 100 %.
+- **Tests for the `recurrence` CLI subcommand** — guard clause, empty state,
+  human-readable report and JSON mode were all unexercised. `cli.py` 85 % → 96 %.
+
+  Overall coverage 94 % → 97 %; suite 125 → 157 tests.
+
+### Fixed
+
+- **`docs/INSIGHTS.md` §5 documented the wrong learning-state thresholds.** It
+  claimed the `mature` gate sits at 2000 events; core's `_learning_state()`
+  opens its `stable` gate at **1000** (which `AnomalyScorer.MATURE_EVENTS`
+  already anchored to, so the docs contradicted both core and `SCORING.md`). It
+  also omitted the `acc < 0.3` accuracy condition entirely, presenting the state
+  as purely event-count-driven — the omission that makes "100 % progress but
+  still warming" look like a bug rather than the real signal it is. Also
+  clarified that the raw core dialect is `cold_start`/`learning`/`stable` and
+  the normalized one is `cold_start`/`warming`/`mature`.
+- **Stale documentation of behaviour changed in this release** — `SPEC.md` §3
+  and `docs/API.md` still described entity registration via
+  `slug(action)` directly, which no longer predicts the entity id for colliding
+  action names; `docs/SCORING.md` still described a novel action's severity as
+  the *raw* surprise, which is now clamped to 0–1.
+- Removed an unused `dataclasses.field` import and two unused test imports; the
+  four `# noqa: BLE001` directives were dead (ruff exempts a blind `except`
+  that calls `logger.exception`) and were replaced with plain rationale comments.
+
+### Added
+
+- **`docs/API.md`: "Timestamps" and "Memory: what is bounded and what is not"
+  sections.** The first documents the rule the timezone fix established (a naive
+  datetime is read as UTC). The second closes a genuinely misleading gap: the
+  docs advertise `max_records`, `max_events` and a "bounded ring buffer"
+  throughout, which invites the conclusion that memory is bounded generally —
+  those cap *events*, not *streams*, while every per-action structure grows with
+  the action vocabulary and is never evicted. The bounded-vocabulary assumption
+  is now also an honest-limitations bullet in both READMEs.
+
 ### Fixed
 
 - **Naive timestamps no longer crash the pipeline.** `watch.observe(action,

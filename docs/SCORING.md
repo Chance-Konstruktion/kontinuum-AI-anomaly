@@ -31,8 +31,9 @@ the combined `score` is the max of the components.
 
 `NoveltyStrategy` flags the **first occurrence** of any action. A never-seen
 action has no learned expectation, so its surprise is high by construction and
-its severity `score` is that raw surprise. This is run-length-independent: it is
-just as reliable on event 3 as on event 30 000.
+its severity `score` is that surprise, clamped to the 0–1 range the field
+promises. This is run-length-independent: it is just as reliable on event 3 as on
+event 30 000.
 
 This is the signal to trust. If you only take one thing from the scorer, take
 novelty.
@@ -46,8 +47,11 @@ action*?" becomes answerable. `AdaptiveThresholdStrategy` keeps a rolling window
 of each action's surprise values and flags when the current surprise exceeds:
 
 ```
-threshold = median + max(min_spread, k · 1.4826 · MAD)
+threshold = max(floor, median + max(min_spread, k · 1.4826 · MAD))
 ```
+
+Both bounds are applied: the inner `max` keeps the band from collapsing onto a
+steady stream's median, the outer one keeps a calm stream from alerting at all.
 
 - **Per-stream, not global.** A chatty benign action can't raise the bar for a
   rare critical one — each action is judged against its *own* normal.
@@ -91,7 +95,10 @@ familiar action arriving in an unfamiliar *order*.
 
 `score` is a 0–1 severity. For a threshold flag it is how far past the bar the
 surprise landed, normalized to the headroom above it; for a novel action it is
-the raw surprise. `escalation_level()` maps it to `info` / `warning` /
+the surprise itself. Either way the result is clamped to 0–1 — core's `surprise`
+is not guaranteed to stay ≤ 1 on every build, and `escalation_level()` and the
+dashboard both read `score` as a fraction. `escalation_level()` maps it to
+`info` / `warning` /
 `critical` (cut-points 0.4 / 0.75 by default), and a **novel action is always
 floored to at least `warning`** — a never-seen action is worth a human's glance
 even when its raw score is modest.
