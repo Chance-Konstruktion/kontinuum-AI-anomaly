@@ -17,6 +17,7 @@ import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from ._timeutil import as_utc_or_now
 from .alerting import AlertRouter
 from .history import AnomalyHistory, AnomalyRecord
 from .monitor import AgentMonitor
@@ -138,7 +139,7 @@ class AnomalyWatch:
                 is_novel=(f.signal == "new_established"),
                 reasons=[f.reason],
                 strategy="recurrence",
-                ts=(now.isoformat() if now is not None else datetime.now().isoformat()),
+                ts=as_utc_or_now(now).isoformat(),
                 agent_id=self.agent_id,
             )
             report = self.router.route(rec, now=now)

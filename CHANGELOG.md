@@ -6,6 +6,51 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- **Naive timestamps no longer crash the pipeline.** `watch.observe(action,
+  ts=datetime.now())` — the most natural call there is, since `datetime.now()`
+  returns a *naive* datetime — raised `TypeError: can't compare offset-naive and
+  offset-aware datetimes` against the UTC-aware virtual clock. The same mix
+  reached the anomaly ledger's window queries, the alert cooldown, and the
+  cross-stream correlator's sorted event list. A caller-supplied timestamp is
+  now normalized to UTC at every boundary (new internal `_timeutil` module);
+  a naive one is interpreted as UTC.
+- **Alerts were silently swallowed by a cooldown that never delivered
+  anything.** `AlertRouter.route()` armed the per-action rate limiter *before*
+  checking whether any sink was eligible for that escalation level, so an
+  `info`-level anomaly on a router whose only sink subscribes at `critical`
+  started the clock — and a genuine `critical` alert for the same action inside
+  the cooldown window was then dropped as `rate_limited` although nothing had
+  ever been sent. The cooldown is now armed only on actual delivery.
+- **Run-wide `surprise_trend` was computed across streams, not across time.**
+  `AnomalyScorer.metrics()` concatenated the per-stream rolling windows and split
+  the result in half, so the "older half" was really "whichever streams came
+  first in the dict": two perfectly flat streams reported a trend of `-0.8`. The
+  aggregate trend now uses its own chronological window (flat streams → ~0).
+- **`AnomalyScore.score` could exceed its documented 0-1 range.** Novel actions
+  passed raw surprise straight through, which is not bounded by 1 on every core
+  build — feeding out-of-range severities to `escalation_level()` and the
+  dashboard. Severities are clamped to 0-1.
+- **Distinct action names could collapse onto one core token.** `slug()` maps
+  everything outside `[a-z0-9]` to `_`, so `"deploy prod"` and `"deploy-prod"`
+  shared one entity: their surprise histories were pooled and their on/off
+  toggling interleaved, corrupting both streams. Each action now owns a unique
+  slug (numeric suffix on collision), persisted with the brain so a reload keeps
+  every action on the token it was learned under. Collision-free names are
+  unaffected.
+- **`AlertRouter` keyed sink levels by `id(sink)`**, which silently collapsed the
+  same sink instance registered twice at two different levels; sinks and their
+  minimum levels are now held together.
+
+### Changed
+
+- **Recurrence ingestion is ~65× faster and no longer scales with the number of
+  tracked actions.** `RecurrenceDetector.record()` pruned the entire ring on
+  every single event (O(actions × buckets) per observation); pruning is now gated
+  on the ring actually advancing, which reaches the identical state. Measured on
+  20 000 events across 500 actions: 1.35 s → 0.02 s.
+
 ## [0.1.0a3] — 2026-07-23
 
 First alpha to actually reach PyPI carrying the full feature set (the package

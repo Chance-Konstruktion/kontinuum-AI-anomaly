@@ -14,16 +14,15 @@ import json
 import logging
 import urllib.error
 import urllib.request
-from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, Dict, List, Optional, Protocol
+from datetime import datetime, timedelta
+from typing import Any, Callable, Dict, List, Optional, Protocol, Tuple
 
+from ._timeutil import as_utc, now_utc
 from .history import AnomalyRecord
 
 logger = logging.getLogger("kontinuum_ai_anomaly.alerting")
 
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
+_now = now_utc  # backwards-compatible alias
 
 
 # Escalation levels, ordered least → most severe. A record's level is derived
@@ -182,8 +181,10 @@ class AlertRouter:
         *,
         level_thresholds: Optional[Dict[str, float]] = None,
     ):
-        self.sinks: List[AlertSink] = []
-        self._min_level: Dict[int, str] = {}
+        # Sinks and their minimum levels are held as parallel entries rather than
+        # keyed by ``id(sink)``: identity keying silently collapsed the same sink
+        # instance registered twice at two different levels.
+        self._entries: List[Tuple[AlertSink, str]] = []
         self.cooldown_seconds = cooldown_seconds
         self.level_thresholds = level_thresholds or DEFAULT_LEVEL_THRESHOLDS
         self._last_sent: Dict[str, datetime] = {}
@@ -195,11 +196,19 @@ class AlertRouter:
             else:
                 self.add_sink(entry)
 
+    @property
+    def sinks(self) -> List[AlertSink]:
+        """The registered sinks, in registration order.
+
+        A fresh list each time — register through :meth:`add_sink` so the sink's
+        minimum level is recorded alongside it.
+        """
+        return [sink for sink, _level in self._entries]
+
     def add_sink(self, sink: AlertSink, *, min_level: str = "info") -> None:
         if min_level not in _LEVEL_INDEX:
             raise ValueError(f"min_level must be one of {LEVELS}")
-        self._min_level[id(sink)] = min_level
-        self.sinks.append(sink)
+        self._entries.append((sink, min_level))
 
     # ------------------------------------------------------------------
     # Snooze
@@ -211,7 +220,8 @@ class AlertRouter:
         expires (an on-call human silencing a known-flapping stream). Distinct
         from ``cooldown_seconds``, which is automatic per-action rate-limiting.
         """
-        self._snoozed[action] = (now or _now()) + timedelta(seconds=seconds)
+        base = as_utc(now) if now is not None else _now()
+        self._snoozed[action] = base + timedelta(seconds=seconds)
 
     def unsnooze(self, action: str) -> None:
         self._snoozed.pop(action, None)
@@ -235,7 +245,7 @@ class AlertRouter:
 
     def route(self, rec: AnomalyRecord, *, now: Optional[datetime] = None) -> Dict[str, Any]:
         """Deliver ``rec`` to eligible sinks. Returns a per-sink delivery report."""
-        now = now or _now()
+        now = as_utc(now) if now is not None else _now()
         level = escalation_level(rec, self.level_thresholds)
         if self._is_snoozed(rec.action, now):
             self.suppressed += 1
@@ -243,13 +253,17 @@ class AlertRouter:
         if self._rate_limited(rec.action, now):
             self.suppressed += 1
             return {"delivered": False, "reason": "rate_limited", "level": level, "sinks": {}}
-        self._last_sent[rec.action] = now
         rank = _LEVEL_INDEX[level]
         results: Dict[str, bool] = {}
-        for sink in self.sinks:
-            if rank < _LEVEL_INDEX[self._min_level.get(id(sink), "info")]:
+        for sink, min_level in self._entries:
+            if rank < _LEVEL_INDEX[min_level]:
                 continue
             results[sink.name] = sink.deliver(rec)
         if not results:
+            # Nothing went out, so nothing may start the cooldown clock. Arming
+            # it here used to swallow the *next* alert for this action: a
+            # below-threshold info event would rate-limit a genuine critical one
+            # arriving inside the window, even though no sink had ever fired.
             return {"delivered": False, "reason": "below_sink_levels", "level": level, "sinks": {}}
+        self._last_sent[rec.action] = now
         return {"delivered": True, "level": level, "sinks": results}

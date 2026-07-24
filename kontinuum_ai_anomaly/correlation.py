@@ -16,18 +16,18 @@ This module adds that layer without touching core or the single-agent pipeline:
 """
 from __future__ import annotations
 
+import os
 from bisect import insort
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
+from ._timeutil import as_utc_or_now, now_utc
 from .alerting import AlertRouter
 from .scoring import AnomalyScore, ScoringStrategy
 from .watch import AnomalyWatch
 
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
+_now = now_utc  # backwards-compatible alias
 
 
 @dataclass(frozen=True)
@@ -67,7 +67,9 @@ class CrossStreamCorrelator:
         *,
         ts: Optional[datetime] = None,
     ) -> CorrelatedEvent:
-        ts = ts or _now()
+        # Normalized at the boundary: the sorted event list compares timestamps
+        # on every insert, so one naive ts among aware ones would raise.
+        ts = as_utc_or_now(ts)
         ev = CorrelatedEvent(agent_id=agent_id, action=action, score=score, ts=ts)
         insort(self._events, (ts, self._seq, ev))
         self._seq += 1
@@ -170,8 +172,6 @@ class MultiAgentWatch:
     def _path(self, base: Optional[str], agent_id: str) -> Optional[str]:
         if not base:
             return None
-        import os
-
         os.makedirs(base, exist_ok=True)
         return os.path.join(base, f"{agent_id}.json")
 

@@ -13,6 +13,7 @@ preset file is safe to read and diff.
 from __future__ import annotations
 
 import json
+import os
 from typing import Any, Dict, List
 
 from .scoring import (
@@ -91,8 +92,6 @@ def import_preset(preset: Dict[str, Any]) -> ScoringStrategy:
 
 def save_preset(strategy: ScoringStrategy, path: str, *, name: str = "custom") -> None:
     """Write a preset to ``path`` as JSON (atomic replace)."""
-    import os
-
     payload = export_preset(strategy, name=name)
     tmp = f"{path}.tmp"
     with open(tmp, "w", encoding="utf-8") as fh:

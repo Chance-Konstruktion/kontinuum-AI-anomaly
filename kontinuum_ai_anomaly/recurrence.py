@@ -35,22 +35,13 @@ from datetime import datetime, timezone
 from statistics import median
 from typing import Any, Dict, List, Optional
 
+from ._timeutil import as_utc as _as_utc, now_utc as _now
+
 # median-absolute-deviation → std-equivalent, same constant the scoring layer and
 # core use so the robust baseline here reads on the same scale.
 _MAD_TO_STD = 1.4826
 
 _DAY_SECONDS = 86_400.0
-
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def _as_utc(ts: datetime) -> datetime:
-    """Coerce a naive timestamp to UTC so bucketing is deterministic."""
-    if ts.tzinfo is None:
-        return ts.replace(tzinfo=timezone.utc)
-    return ts.astimezone(timezone.utc)
 
 
 @dataclass
@@ -149,9 +140,14 @@ class RecurrenceDetector:
         buckets[b] = buckets.get(b, 0) + 1
         if action not in self._first_seen or when < self._first_seen[action]:
             self._first_seen[action] = when
+        # Pruning only ever removes buckets that fell out of the ring, and that
+        # can only happen when the ring actually advances. Running it on every
+        # single event made ingestion O(actions × buckets) per observation —
+        # measurably the hot path once a deployment tracks a few hundred
+        # actions. Gating it on a new window keeps the identical end state.
         if self._latest_bucket is None or b > self._latest_bucket:
             self._latest_bucket = b
-        self._prune()
+            self._prune()
 
     def _prune(self) -> None:
         """Drop windows older than the ring; forget actions that fall out entirely."""

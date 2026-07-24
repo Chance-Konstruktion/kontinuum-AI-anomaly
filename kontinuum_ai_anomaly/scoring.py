@@ -26,6 +26,18 @@ from typing import Any, Deque, Dict, List, Optional, Protocol
 # median-absolute-deviation → std-equivalent, matching core's own convention.
 _MAD_TO_STD = 1.4826
 
+
+def _clamp01(value: float) -> float:
+    """Clamp a severity into the documented 0-1 range.
+
+    ``AnomalyScore.score`` is specified as a 0-1 severity and consumers treat it
+    that way — :func:`~kontinuum_ai_anomaly.alerting.escalation_level` compares
+    it against cut-points, the dashboard renders it as a fraction. Raw surprise
+    is not bounded by 1 on every core build, so novelty severities were able to
+    escape the range they promise.
+    """
+    return max(0.0, min(1.0, value))
+
 # Core reports a discrete maturity label on every snapshot, but the vocabulary is
 # not stable across builds: ``engine._learning_state()`` returns
 # ``cold_start`` / ``learning`` / ``stable`` (SPEC.md §5.4), while core's own
@@ -114,7 +126,7 @@ class NoveltyStrategy:
         return AnomalyScore(
             action=obs["action"],
             is_anomaly=novel,
-            score=surprise if novel else 0.0,
+            score=_clamp01(surprise) if novel else 0.0,
             surprise=surprise,
             threshold=float(obs.get("threshold", 0.0)),
             is_novel=novel,
@@ -235,7 +247,11 @@ class AdaptiveThresholdStrategy:
         score = 0.0
         if is_anomaly:
             span = max(1e-6, 1.0 - threshold)
-            score = max(0.0, min(1.0, (surprise - threshold) / span)) if not novel else surprise
+            score = (
+                _clamp01(surprise)
+                if novel
+                else _clamp01((surprise - threshold) / span)
+            )
         return AnomalyScore(
             action=action,
             is_anomaly=is_anomaly,
@@ -433,6 +449,13 @@ class AnomalyScorer:
         self._recent_surprise: Dict[str, Deque[float]] = defaultdict(
             lambda: deque(maxlen=self._TREND_WINDOW)
         )
+        # Run-wide surprise in *arrival* order. The global trend cannot be
+        # reassembled from the per-stream windows above: concatenating them
+        # walks stream by stream, so the "older half" is really "whichever
+        # streams come first in the dict" and a set of perfectly flat streams
+        # reports a large bogus trend. Keeping one chronological window makes
+        # the aggregate trend mean what its name says.
+        self._recent_global: Deque[float] = deque(maxlen=self._TREND_WINDOW)
         self._total_observations = 0
         # Keep core's raw label verbatim; the canonical form is derived on read.
         self._learning_state_raw = "cold_start"
@@ -445,6 +468,7 @@ class AnomalyScorer:
         if result.is_anomaly:
             c["anomalies"] += 1
         self._recent_surprise[result.action].append(result.surprise)
+        self._recent_global.append(result.surprise)
         self._total_observations += 1
         state = obs.get("learning_state")
         if state:
@@ -506,16 +530,13 @@ class AnomalyScorer:
         total_obs = self._total_observations or 1
         total_anom = sum(int(c["anomalies"]) for c in self._counts.values())
         total_surprise = sum(c["surprise_sum"] for c in self._counts.values())
-        all_recent: List[float] = []
-        for dq in self._recent_surprise.values():
-            all_recent.extend(dq)
         return {
             "observations": self._total_observations,
             "streams": len(self._counts),
             "anomalies": total_anom,
             "anomaly_rate": round(total_anom / total_obs, 4),
             "mean_surprise": round(total_surprise / total_obs, 4),
-            "surprise_trend": round(self._trend(all_recent), 4),
+            "surprise_trend": round(self._trend(list(self._recent_global)), 4),
             "learning_state": normalize_learning_state(self._learning_state_raw),
             "learning_state_raw": self._learning_state_raw,
             "learning_progress": round(self.learning_progress(), 4),
