@@ -83,9 +83,18 @@ Persists to `persist_path`; no-op if none was given.
 ## 3. Token distinctness — use the per-room path
 
 To give each action its own token, register it with its own room:
-`register_entity(f"switch.{slug(action)}", ha_area=slug(action), domain="switch")`,
-which yields the token `{action}.switch.on|off`. This uses **stable public
-API**. The alternative — `custom_semantic_rules` — has **no clean public
+`register_entity(f"switch.{s}", ha_area=s, domain="switch")`, which yields the
+token `{s}.switch.on|off`. This uses **stable public API**.
+
+`s` is the action's **unique** slug, not `slug(action)` directly. `slug()` maps
+everything outside `[a-z0-9]` to `_`, so it is lossy: `"deploy prod"` and
+`"deploy-prod"` both normalize to `deploy_prod`. Letting them share a slug means
+sharing one entity — the two streams' surprise histories get pooled and their
+on/off toggling interleaves, corrupting both. `AgentMonitor` therefore allocates
+each action its own slug on first sight, appending a numeric suffix when the
+normalized form is already taken (`deploy_prod`, `deploy_prod_2`, …), and
+persists that mapping with the brain so a reload keeps every action on the token
+it was learned under. Names that do not collide are unaffected. The alternative — `custom_semantic_rules` — has **no clean public
 setter**; it is only loaded via `load_custom_profiles(path)` from a JSON file
 with a `"semantic_rules"` key. Prefer per-room unless there is a strong reason
 to wire up custom profiles.

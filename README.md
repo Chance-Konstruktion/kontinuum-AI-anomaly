@@ -148,6 +148,14 @@ Being honest about this saves you from trusting the wrong signal:
 - **Not a thing it does:** it does **not** train or change your agent. It's an
   external observer that produces a signal; what you do with that signal is up
   to you.
+- **Assumes a bounded action vocabulary.** Per-action state (surprise histories,
+  transition counts, alert cooldowns) is kept for every distinct action name and
+  never evicted — the `max_records` / `max_events` caps bound *events*, not
+  *streams*. That's fine for `plan` / `observe` / `escalate`, but putting an id
+  in the name (`fetch_user_8123`) creates a permanent stream per value: memory
+  grows without limit and a stream seen once can never build a baseline. Put the
+  varying part in `detail=`, which never becomes a token. See
+  [`docs/API.md`](docs/API.md#memory-what-is-bounded-and-what-is-not).
 
 The design reflects this: scoring is **novelty-first**, and the adaptive
 threshold for known actions only switches on once there's enough data to be

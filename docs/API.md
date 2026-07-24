@@ -10,6 +10,19 @@ from kontinuum_ai_anomaly import AnomalyWatch, AlertRouter, LogSink  # etc.
 For a runnable walk-through see [`USAGE.md`](USAGE.md); for *why* the scorer
 decides the way it does see [`SCORING.md`](SCORING.md).
 
+## Timestamps
+
+Every `ts=` / `now=` argument below takes a `datetime` and follows one rule:
+**a naive datetime is interpreted as UTC.** So `observe(action,
+ts=datetime.now())` works — `datetime.now()` is naive — and you can mix naive and
+aware timestamps in one run without the window queries, alert cooldowns or
+correlation windows raising `TypeError`. Everything is stored and reported in
+UTC; `AnomalyRecord.datetime()` always returns an aware datetime.
+
+If your timestamps are local time rather than UTC, attach the timezone yourself
+(`datetime.now(timezone.utc)` or an explicit `tzinfo`) — the package cannot tell
+a local naive timestamp from a UTC one.
+
 ---
 
 ## Orchestration
@@ -60,6 +73,12 @@ Feeds named actions into `kontinuum-core`, hiding the token/room mechanics.
 - `context()`, `save()`.
 
 `slug(action) -> str` normalizes an action name to a token-safe `[a-z0-9_]` form.
+It is **lossy** — `"deploy prod"` and `"deploy-prod"` both give `deploy_prod` —
+so it is not the token an action ends up on. `AgentMonitor` allocates each action
+a *unique* slug on first sight, adding a numeric suffix when the normalized form
+is taken (`deploy_prod`, `deploy_prod_2`, …), so two distinct actions never share
+a core entity and pool their surprise histories. The mapping is persisted with
+the brain. Collision-free names get plain `slug(action)`, as before.
 
 ---
 
@@ -154,7 +173,16 @@ levels, and snooze.
   `format_alert(rec) -> str`, `LEVELS`.
 
 A sink entry may be a bare sink (receives every level) or a `(sink, min_level)`
-pair.
+pair. Register through the constructor or `add_sink(sink, *, min_level="info")`;
+`router.sinks` is a read-only view (a fresh list), so appending to it does
+nothing.
+
+`route()` returns `{"delivered": bool, "level": ..., "sinks": {name: bool}}`, and
+when nothing goes out a `"reason"` of `"snoozed"`, `"rate_limited"` or
+`"below_sink_levels"`. **`cooldown_seconds` starts only when an alert was
+actually delivered** — an anomaly that reached no sink because it sat below every
+sink's `min_level` does not arm the rate limiter, so a later, more severe alert
+for the same action still gets through.
 
 ---
 
@@ -227,3 +255,48 @@ metric it did not compute.
 > `learning_progress_pct` is **volume only**; core's `learning_state` also
 > weighs prediction accuracy, so 100 % progress while still `warming` is a valid
 > state, not a bug. See [SCORING.md](SCORING.md#learning-state).
+
+---
+
+## Memory: what is bounded and what is not
+
+Several structures here advertise a bound — `AnomalyHistory(max_records=10000)`,
+`CrossStreamCorrelator(max_events=10000)`, the recurrence ring buffer — so it is
+worth being explicit that **these bound the number of events, not the number of
+distinct actions.**
+
+Everything keyed *per action* grows with the size of your action vocabulary and
+is never evicted:
+
+| Structure | Holds |
+|---|---|
+| `AdaptiveThresholdStrategy._history` | a `window`-sized deque per action |
+| `SequenceStrategy._transitions` | a transition-count map per action |
+| `AnomalyScorer._counts`, `._recent_surprise` | counters and a 50-value deque per action |
+| `AlertRouter._last_sent`, `._snoozed` | a timestamp per action |
+| `AgentMonitor._seen_actions`, `._action_slug` | one entry per action, also persisted |
+
+This is fine — intentionally so — for the case the package is built around: an
+agent with a **stable, bounded action vocabulary** (`plan`, `observe`, `reflect`,
+`escalate`, …), where these maps stop growing once the agent has been seen doing
+each thing once.
+
+It is **not** fine if action names carry unbounded data:
+
+```python
+watch.observe(f"fetch_user_{user_id}")     # unbounded — one stream per user
+watch.observe(f"http_get_{url}")           # unbounded — one stream per URL
+```
+
+Every distinct string becomes a permanent stream: memory grows without limit, the
+brain file grows with it, and the statistics are useless anyway (a stream seen
+once can never build a baseline). Put the varying part in `detail`, which is
+accepted for exactly this reason and never becomes a token:
+
+```python
+watch.observe("fetch_user", detail=f"user_id={user_id}")   # one stream, bounded
+```
+
+If you genuinely need high-cardinality streams, run a periodically recreated
+`AnomalyWatch` (persisting only what you want to keep) rather than one
+long-lived instance.

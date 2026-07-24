@@ -127,6 +127,15 @@ Ehrlichkeit hier bewahrt dich davor, dem falschen Signal zu vertrauen:
 - **Was es nicht tut:** Es trainiert oder verändert deinen Agenten **nicht**. Es
   ist ein externer Beobachter, der ein Signal erzeugt; was du mit diesem Signal
   machst, bleibt dir überlassen.
+- **Setzt ein begrenztes Aktions-Vokabular voraus.** Zustand pro Aktion
+  (Surprise-Historien, Übergangszähler, Alert-Cooldowns) wird für jeden distinkten
+  Aktionsnamen gehalten und nie verworfen — die Grenzen `max_records` /
+  `max_events` beschränken *Ereignisse*, nicht *Streams*. Für `plan` / `observe` /
+  `escalate` ist das genau richtig; steckt aber eine ID im Namen
+  (`fetch_user_8123`), entsteht pro Wert ein dauerhafter Stream: Der Speicher
+  wächst unbegrenzt, und ein einmal gesehener Stream kann nie eine Baseline
+  aufbauen. Pack den variablen Teil in `detail=` — das wird nie zu einem Token.
+  Siehe [`docs/API.md`](docs/API.md#memory-what-is-bounded-and-what-is-not).
 
 Das Design spiegelt das wider: Das Scoring ist **neuheit-zuerst**, und der
 adaptive Schwellenwert für bekannte Aktionen schaltet sich erst zu, wenn genug
