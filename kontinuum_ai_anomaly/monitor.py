@@ -29,6 +29,8 @@ from kontinuum_core import (
     render_llm_context,
 )
 
+from ._timeutil import as_utc
+
 # Default spacing on the virtual clock. Kept well above the reticular burst
 # gate's window (SPEC.md §5.5) so replayed / synthetic streams are never
 # silently burst-filtered and mistaken for silent ingestion drops.
@@ -72,6 +74,11 @@ class AgentMonitor:
         self._registered: set[str] = set()
         self._state_on: Dict[str, bool] = {}
         self._seen_actions: set[str] = set()
+        # action name -> the slug (and hence core token) it owns. Kept explicit
+        # because :func:`slug` is lossy: ``"deploy prod"`` and ``"deploy-prod"``
+        # both normalize to ``deploy_prod``, which would silently merge two
+        # distinct action streams onto one learned token. See :meth:`_slug_for`.
+        self._action_slug: Dict[str, str] = {}
         # Monotonic virtual clock so events are spaced realistically even when
         # the caller never supplies a timestamp.
         self._clock = datetime(2025, 1, 1, 8, 0, 0, tzinfo=timezone.utc)
@@ -82,6 +89,30 @@ class AgentMonitor:
     # ------------------------------------------------------------------
     # Ingestion
     # ------------------------------------------------------------------
+    def _slug_for(self, action: str) -> str:
+        """The unique slug owned by ``action``, allocated on first sight.
+
+        :func:`slug` collapses everything outside ``[a-z0-9]`` to ``_``, so
+        distinct action names can normalize to the same string. Sharing a slug
+        means sharing a core entity — the two streams' surprise histories would
+        be pooled and their on/off toggling would interleave, corrupting both.
+        A taken slug therefore gets a numeric suffix, which keeps every action
+        on its own token while leaving the common (collision-free) case byte-for-
+        byte identical to before.
+        """
+        existing = self._action_slug.get(action)
+        if existing is not None:
+            return existing
+        base = slug(action)
+        candidate = base
+        n = 2
+        taken = set(self._action_slug.values())
+        while candidate in taken:
+            candidate = f"{base}_{n}"
+            n += 1
+        self._action_slug[action] = candidate
+        return candidate
+
     def observe(
         self,
         action: str,
@@ -99,7 +130,7 @@ class AgentMonitor:
         ``detail`` is accepted for caller ergonomics / logging symmetry; it does
         not change the learned token (the token granularity is the action).
         """
-        s = slug(action)
+        s = self._slug_for(action)
 
         # 1) Auto-register each action with its own room so every action gets a
         #    distinct token and is never dropped as unregistered (SPEC.md §5.3).
@@ -120,6 +151,11 @@ class AgentMonitor:
             self._clock += timedelta(seconds=self.step_seconds)
             ts = self._clock
         else:
+            # A caller-supplied timestamp is normalized to UTC first: the virtual
+            # clock is UTC-aware, and the most natural call there is —
+            # ``observe(action, ts=datetime.now())`` — hands in a *naive*
+            # datetime, which used to make this comparison raise TypeError.
+            ts = as_utc(ts)
             # Keep the virtual clock monotonically ahead of any supplied ts so a
             # later default-timestamped call never lands "before" this one.
             if ts > self._clock:
@@ -187,6 +223,9 @@ class AgentMonitor:
                 "registered": sorted(self._registered),
                 "state_on": self._state_on,
                 "seen_actions": sorted(self._seen_actions),
+                # Persisted so a reloaded brain keeps every action pointing at
+                # the same core token it was learned under.
+                "action_slug": dict(self._action_slug),
                 "clock": self._clock.isoformat(),
             },
         }
@@ -204,9 +243,18 @@ class AgentMonitor:
         self._registered = set(mon.get("registered", []))
         self._state_on = dict(mon.get("state_on", {}))
         self._seen_actions = set(mon.get("seen_actions", []))
+        # Older brain files predate the explicit map; rebuilding it from the
+        # seen actions reproduces exactly what those files assumed.
+        stored_slugs = mon.get("action_slug")
+        if stored_slugs:
+            self._action_slug = dict(stored_slugs)
+        else:
+            self._action_slug = {}
+            for action in sorted(self._seen_actions):
+                self._slug_for(action)
         clock = mon.get("clock")
         if clock:
             try:
-                self._clock = datetime.fromisoformat(clock)
+                self._clock = as_utc(datetime.fromisoformat(clock))
             except ValueError:
                 pass

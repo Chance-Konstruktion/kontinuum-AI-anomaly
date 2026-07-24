@@ -12,14 +12,13 @@ import json
 import os
 from collections import Counter
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
+from ._timeutil import as_utc, as_utc_or_now, now_utc
 from .scoring import AnomalyScore
 
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
+_now = now_utc  # backwards-compatible alias
 
 
 @dataclass
@@ -54,13 +53,19 @@ class AnomalyRecord:
             is_novel=result.is_novel,
             reasons=list(result.reasons),
             strategy=result.strategy,
-            ts=(ts or _now()).isoformat(),
+            ts=as_utc_or_now(ts).isoformat(),
             agent_id=agent_id,
             detail=detail,
         )
 
     def datetime(self) -> datetime:
-        return datetime.fromisoformat(self.ts)
+        """This record's timestamp, always timezone-aware (UTC).
+
+        Ledgers written before timestamps were normalized at the boundary — and
+        records hand-built by callers — can carry a naive ISO string; those are
+        read as UTC so window queries never mix aware and naive datetimes.
+        """
+        return as_utc(datetime.fromisoformat(self.ts))
 
 
 class AnomalyHistory:
@@ -102,8 +107,9 @@ class AnomalyHistory:
     # Queries
     # ------------------------------------------------------------------
     def since(self, when: datetime) -> List[AnomalyRecord]:
-        """Records at or after ``when``."""
-        return [r for r in self.records if r.datetime() >= when]
+        """Records at or after ``when`` (a naive ``when`` is read as UTC)."""
+        cutoff = as_utc(when)
+        return [r for r in self.records if r.datetime() >= cutoff]
 
     def recent(self, days: float = 7.0) -> List[AnomalyRecord]:
         """Records within the last ``days`` (default: this week)."""
