@@ -5,7 +5,8 @@ from a home-automation engine into an agent monitor. They are not obvious from
 core's public API, and each one cost real debugging time. If you build anything
 on core, read this first.
 
-Verified against `kontinuum-core` 0.6.0–0.6.2.
+Verified against `kontinuum-core` 0.6.0–0.6.3 (the versions this package's CI
+matrix exercises; it depends on `>= 0.6.3`).
 
 ---
 
@@ -80,13 +81,35 @@ think ingestion is broken. Space events realistically on a virtual clock
 
 ---
 
-## 5. Learning-state thresholds — `cold_start` is normal
+## 5. Learning-state thresholds — `cold_start` is normal, and accuracy gates it
 
-`learning_state` is a maturity label, not a health check:
+`learning_state` is a maturity label, not a health check. Core's
+`engine._learning_state()` reads:
 
-- `< 100` events → `cold_start`
-- `< 2000` events → `warming`
-- `≥ 2000` events → `mature`
+```python
+n = hippocampus.total_events
+acc = hippocampus.accuracy
+if n < 100:                  return "cold_start"
+if n < 1000 or acc < 0.3:    return "learning"
+return "stable"
+```
+
+Two things that are easy to get wrong:
+
+- **The `stable` gate is 1000 events, not 2000.** (This package anchors
+  `AnomalyScorer.MATURE_EVENTS` to the same 1000 so its progress bar and core's
+  label can't disagree for a merely structural reason.)
+- **Event count alone is not enough.** `acc < 0.3` holds the state at
+  `learning` no matter how many events you feed it. So "plenty of events but
+  still not `stable`" is a real signal — predictions haven't converged — not a
+  stuck counter. This is exactly why a volume-based progress percentage can read
+  100 % while the state says `warming`; see
+  [`SCORING.md`](SCORING.md#learning-state).
+
+Note the vocabulary: the raw strings above are core's engine dialect
+(`cold_start` / `learning` / `stable`). Core's LLM-context helper describes the
+same scale as `cold_start` / `warming` / `mature`, and this package normalizes
+both onto the latter — so `learning` and `warming` are the same rung.
 
 Seeing `cold_start` on a short run is expected, not a bug. Also note
 `total_events` is **not** the same as `tick_count` (dropped and de-duplicated
@@ -122,8 +145,9 @@ print(d["info"]["version"], sorted(d["releases"]))
 ```
 
 (0.6.1 was tagged on GitHub but never reached PyPI; 0.6.2 is the first published
-build with `get_diagnostics()`. Pin `kontinuum-core >= 0.6.2` if you depend on
-diagnostics.)
+build with `get_diagnostics()`, so pin `kontinuum-core >= 0.6.2` if you depend
+on diagnostics — this package pins `>= 0.6.3` to keep the KONTINUUM family on
+one core.)
 
 ---
 

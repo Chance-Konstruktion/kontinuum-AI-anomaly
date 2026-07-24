@@ -55,6 +55,39 @@ jobs:
       - name: Run tests
         run: pytest -q
 
+  lint:
+    name: lint + types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          # A recent interpreter on purpose: current mypy refuses to *analyse*
+          # for 3.9 ("must be 3.10 or higher"), so pinning the lint job to the
+          # oldest supported runtime would break it. 3.9 compatibility is
+          # covered where it belongs — ruff's `target-version = "py39"` in
+          # pyproject.toml for lint rules, and the test matrix above, which
+          # actually imports and runs the package on 3.9.
+          python-version: "3.12"
+
+      - name: Install package + lint tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[dev]" ruff mypy
+
+      - name: ruff
+        # The rule selection is correctness-focused (see [tool.ruff.lint] in
+        # pyproject.toml), so any finding here is meant to be acted on.
+        run: ruff check .
+
+      - name: mypy
+        # The package ships py.typed, so its annotations are a promise to
+        # downstream users — this keeps that promise honest.
+        run: mypy kontinuum_ai_anomaly --ignore-missing-imports
+
   build:
     name: build sdist + wheel
     runs-on: ubuntu-latest

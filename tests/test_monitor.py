@@ -49,7 +49,7 @@ def test_novelty_flag():
 def test_novelty_trips_surprise_and_anomaly_signal():
     """A never-seen action produces high surprise — the reliable signal."""
     m = AgentMonitor()
-    for i in range(30):
+    for _ in range(30):
         m.observe("routine")
     novel = m.observe("totally_new_action")
     assert novel["is_novel"] is True
