@@ -6,6 +6,35 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 
 ## [Unreleased]
 
+## [0.1.0] — 2026-07-25
+
+**First release without a pre-release suffix** — a plain
+`pip install kontinuum-AI-anomaly` now resolves to it, where `0.1.0a1`–`0.1.0a3`
+needed `pip install --pre`. The trove classifier moves
+`Development Status :: 3 - Alpha` → `4 - Beta` to match: the feature set is
+complete and covered by CI (Python 3.9–3.12 × `kontinuum-core` 0.6.0/0.6.3,
+plus lint and type checks), while 0.x still reserves the right to change the API.
+
+Everything below landed after `0.1.0a3`, which is where the recurrence detector
+arrived. The headline of this release is not new features but a quality pass:
+six defects fixed, one of them reachable from the most natural call in the
+public API, plus a documentation pass that corrected two docs that were
+factually wrong.
+
+> **Upgrading from `0.1.0a3` changes behaviour** — deliberately, since each item
+> was a defect, but read these three before you upgrade:
+>
+> - **Severities are clamped to 0–1.** A novel action whose raw surprise exceeded
+>   1 previously produced a `score` above 1; anything comparing `score` against
+>   its own cut-points sees different (correct) numbers now.
+> - **Colliding action names no longer share a core token.** If you feed action
+>   names that differ only outside `[a-z0-9]` (`"deploy prod"` vs
+>   `"deploy-prod"`), they were one pooled stream and are now two. An existing
+>   brain file keeps its learned mapping; the split applies to newly seen names.
+> - **The alert cooldown starts only on delivery.** An anomaly that reached no
+>   sink no longer suppresses the next one for that action, so you may see
+>   alerts that were previously (wrongly) swallowed.
+
 ### Added
 
 - **Lint + type checking in CI** (`lint` job). `ruff` and `mypy` are configured
@@ -27,6 +56,16 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 
   Overall coverage 94 % → 97 %; suite 125 → 157 tests.
 
+- **`docs/API.md`: "Timestamps" and "Memory: what is bounded and what is not"
+  sections.** The first documents the rule the timezone fix established (a naive
+  datetime is read as UTC). The second closes a genuinely misleading gap: the
+  docs advertise `max_records`, `max_events` and a "bounded ring buffer"
+  throughout, which invites the conclusion that memory is bounded generally —
+  those cap *events*, not *streams*, while every per-action structure grows with
+  the action vocabulary and is never evicted. The bounded-vocabulary assumption
+  is now also an honest-limitations bullet in both READMEs.
+
+
 ### Fixed
 
 - **`docs/INSIGHTS.md` §5 documented the wrong learning-state thresholds.** It
@@ -46,19 +85,6 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 - Removed an unused `dataclasses.field` import and two unused test imports; the
   four `# noqa: BLE001` directives were dead (ruff exempts a blind `except`
   that calls `logger.exception`) and were replaced with plain rationale comments.
-
-### Added
-
-- **`docs/API.md`: "Timestamps" and "Memory: what is bounded and what is not"
-  sections.** The first documents the rule the timezone fix established (a naive
-  datetime is read as UTC). The second closes a genuinely misleading gap: the
-  docs advertise `max_records`, `max_events` and a "bounded ring buffer"
-  throughout, which invites the conclusion that memory is bounded generally —
-  those cap *events*, not *streams*, while every per-action structure grows with
-  the action vocabulary and is never evicted. The bounded-vocabulary assumption
-  is now also an honest-limitations bullet in both READMEs.
-
-### Fixed
 
 - **Naive timestamps no longer crash the pipeline.** `watch.observe(action,
   ts=datetime.now())` — the most natural call there is, since `datetime.now()`

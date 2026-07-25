@@ -9,8 +9,7 @@ build-backend = "setuptools.build_meta"
 name = "kontinuum-AI-anomaly"
 # Version is derived from the Git tag by setuptools-scm (see [tool.setuptools_scm]
 # below), matching kontinuum-core. Tag `vX.Y.Z` and build — no hardcoded string
-# to bump. Building without a tag yields a dev version; tag `v0.1.0a3` for the
-# next (experimental / alpha) release.
+# to bump. Building without a tag yields a dev version.
 dynamic = ["version"]
 authors = [{name = "Chance-Konstruktion", email = "introareback@gmail.com"}]
 description = "Anomaly / novelty monitor for agent action streams, built on kontinuum-core"
@@ -22,7 +21,11 @@ license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
 requires-python = ">=3.9"
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    # 0.1.0 is the first release without a pre-release suffix, so PyPI serves it
+    # to a plain `pip install` (no `--pre`). Beta rather than Alpha reflects
+    # that: the feature set is complete and CI-covered, while the 0.x major
+    # still reserves the right to change the API.
+    "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
