@@ -35,6 +35,36 @@ factually wrong.
 >   sink no longer suppresses the next one for that action, so you may see
 >   alerts that were previously (wrongly) swallowed.
 
+### Fixed
+
+- **Verdicts no longer depend on what time of day the process runs.** Core's
+  `Neurorhythms.get_circadian_multiplier()` reads the *local wall clock* when no
+  hour is passed and maps it onto a learning-rate multiplier from 0.5 (20:00) to
+  1.3 (08:00) — a 2.6× swing — then caches it for 60 s, so one clock reading
+  governed an entire batch or replay. Identical input therefore produced
+  different anomaly verdicts depending on when you ran it. `AgentMonitor` now
+  pins a neutral phase (hour 13, multiplier 1.0) before every ingest, so an
+  agent action stream — which has no day/night rhythm — is judged the same at
+  03:00 as at 15:00. Pass `circadian_hour=None` to restore core's behaviour, or
+  another hour to choose a different phase.
+
+  This was not theoretical: the repository's own pipeline quality gate passed
+  **only between 20:00 and 22:59 UTC** and failed the other 21 hours. CI had been
+  green because every merge happened to land inside that window. The full suite
+  now passes at all 24 hours, which is pinned by
+  `tests/test_circadian_and_warmup.py`.
+
+### Changed
+
+- **The pipeline quality gate now tests the shipped configuration.** It used to
+  lower `AdaptiveThresholdStrategy.warmup` from 100 to 25 so the adaptive path
+  would engage inside a 40-cycle run, which asks the robust median+MAD estimator
+  to judge on a quarter of its evidence — and at that sensitivity a *perfectly
+  stable* rhythm does get flagged. The run is now long enough (120 cycles) to
+  reach the real warmup, so the gate asserts the same strict "stable actions stay
+  quiet" property against the defaults users actually get. The lowered-warmup
+  weakness is kept as an executable note rather than dropped.
+
 ### Added
 
 - **Lint + type checking in CI** (`lint` job). `ruff` and `mypy` are configured

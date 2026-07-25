@@ -118,7 +118,49 @@ thresholds or monotonic growth, never on exact counts.
 
 ---
 
-## 6. Novelty is sharp; sequence order is not
+## 6. The learning rate follows the **wall clock**, not your event timestamps
+
+The trap that cost the most: core's circadian model reads the *local wall clock*
+and turns it into a learning-rate multiplier.
+
+```python
+def get_circadian_multiplier(self, hour: int = None) -> float:
+    now = time.time()
+    if now - self._last_circadian_update > 60 or hour is not None:
+        if hour is None:
+            hour = dt.datetime.now().hour        # ← local wall clock
+        self.circadian_multiplier = 0.5 + _circadian_base(hour) * 0.8
+```
+
+The curve is a cosine peaking at 08:00, so the multiplier runs from **0.5 at
+20:00 to 1.3 at 08:00** — a 2.6× swing in learning rate decided by nothing but
+what time you happened to start the process. It is then cached for 60 s, so one
+clock reading typically governs an entire batch or replay.
+
+Everywhere else core is careful to compute in *event* time precisely so replays
+are reproducible (`ev_now` is threaded through maintenance, sleep consolidation
+and interval timing). This one path is the exception, and it is easy to miss
+because nothing downstream mentions the clock.
+
+**Symptom:** identical input, different verdicts depending on when you run it.
+This package's own pipeline quality gate passed only between 20:00 and 22:59 UTC
+and failed the other 21 hours — green in CI for weeks purely because merges
+happened to land inside that window.
+
+**Fix:** pass `hour` explicitly. It bypasses both the wall-clock fallback and the
+60 s cache. `AgentMonitor` pins hour 13 (multiplier 1.004, the phase where the
+model neither boosts nor damps) before every ingest, so an agent stream — which
+has no day/night rhythm to begin with — is judged the same at 03:00 as at 15:00.
+Pass `circadian_hour=None` to opt back into core's behaviour.
+
+Worth knowing: anchoring to the *event's* hour instead is deterministic but
+measurably worse. Over a replay spanning hours the multiplier drifts, and the
+drifting learning rate produced **more** false alarms on a perfectly stable
+rhythm than any fixed phase. A constant phase is the right call here.
+
+---
+
+## 7. Novelty is sharp; sequence order is not
 
 Empirically, on short-to-medium runs core reliably flags a **never-seen token**
 (high surprise, anomaly trips). It does **not** reliably flag an out-of-order
@@ -129,7 +171,7 @@ but not relied upon.
 
 ---
 
-## 7. A GitHub release is not a PyPI release
+## 8. A GitHub release is not a PyPI release
 
 Not a core-internals fact, but it cost this project two rounds of confusion, so
 it's worth writing down. Tagging `v0.6.1` on GitHub and clicking "Publish
@@ -151,7 +193,7 @@ one core.)
 
 ---
 
-## 8. License propagation
+## 9. License propagation
 
 `kontinuum-core` is AGPL-3.0. Anything that imports it inherits the copyleft and
 the network-service clause. Choose your own package's license deliberately —

@@ -12,11 +12,24 @@ from datetime import datetime, timedelta, timezone
 from kontinuum_ai_anomaly import AnomalyWatch, sequence_aware_strategy
 
 RHYTHM = ("plan", "act", "observe", "reflect", "done")
+# Enough cycles for every action to pass the adaptive strategy's default
+# warmup of 100 samples, so the adaptive path is genuinely exercised.
+CYCLES = 120
+# The training loop spaces events 120 s apart, so it spans CYCLES * 5 * 120 s
+# = 20 h. Everything after it must sit beyond that to stay in chronological
+# order on the engine's clock.
+POST_TRAINING = timedelta(hours=21)
 
 
 def test_quality_gate_full_pipeline_stability_drift_sequence_and_persistence(tmp_path):
     strategy = sequence_aware_strategy()
-    strategy.strategies[1].warmup = 25
+    # The adaptive strategy keeps its shipped warmup (100 samples). An earlier
+    # version lowered it to 25 so the adaptive path would engage within a short
+    # run, but that asks the robust median+MAD estimator to judge on a quarter
+    # of the evidence it is tuned for — and at that sensitivity a *perfectly
+    # stable* rhythm does trip it (pinned in test_circadian_and_warmup.py). The
+    # run below is simply long enough to reach the real warmup instead, so this
+    # gate asserts the behaviour users actually get.
     strategy.strategies[1].early_warmup = None
     strategy.strategies[2].min_context = 15
     strategy.strategies[2].min_prob = 0.0
@@ -34,7 +47,7 @@ def test_quality_gate_full_pipeline_stability_drift_sequence_and_persistence(tmp
 
     # Train a deterministic openclaw-style work loop long enough for both the
     # adaptive scorer and sequence model to have per-action context.
-    for cycle in range(40):
+    for cycle in range(CYCLES):
         for offset, action in enumerate(RHYTHM):
             result = watch.observe(
                 action,
@@ -46,13 +59,13 @@ def test_quality_gate_full_pipeline_stability_drift_sequence_and_persistence(tmp
     rehearsed = {
         action: watch.observe(
             action,
-            ts=base + timedelta(hours=3, minutes=index * 2),
+            ts=base + POST_TRAINING + timedelta(minutes=index * 2),
         ).as_dict()
         for index, action in enumerate(RHYTHM)
     }
     assert all(not verdict["is_anomaly"] for verdict in rehearsed.values()), rehearsed
 
-    novel = watch.observe("escalate", ts=base + timedelta(hours=4))
+    novel = watch.observe("escalate", ts=base + POST_TRAINING + timedelta(hours=1))
     assert novel.is_anomaly is True
     assert novel.is_novel is True
     assert any("never-seen action" in reason for reason in novel.reasons)
@@ -91,10 +104,10 @@ def test_quality_gate_full_pipeline_stability_drift_sequence_and_persistence(tmp
 
     stats = watch.stream_stats()
     assert set(RHYTHM).issubset(stats)
-    assert stats["act"]["observations"] >= 40
+    assert stats["act"]["observations"] >= CYCLES
     assert stats["act"]["anomalies"] == 2
     metrics = watch.metrics()
-    assert metrics["observations"] >= 200
+    assert metrics["observations"] >= CYCLES * len(RHYTHM)
     assert metrics["learning_state"] == "mature"
     assert metrics["learning_state_raw"] == "stable"
 
@@ -106,6 +119,6 @@ def test_quality_gate_full_pipeline_stability_drift_sequence_and_persistence(tmp
         strategy=sequence_aware_strategy(),
         track_recurrence=False,
     )
-    reloaded_escalate = reloaded.monitor.observe("escalate", ts=base + timedelta(hours=5))
+    reloaded_escalate = reloaded.monitor.observe("escalate", ts=base + POST_TRAINING + timedelta(hours=2))
     assert reloaded_escalate["is_novel"] is False
     assert any(record.action == "escalate" for record in reloaded.history.records)
