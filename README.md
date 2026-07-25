@@ -49,8 +49,12 @@ adds exactly the parts core deliberately leaves out:
 ## Install
 
 ```bash
-pip install kontinuum-AI-anomaly
+pip install --pre kontinuum-AI-anomaly
 ```
+
+Every release so far is a **pre-release** (`0.1.0a1`–`0.1.0a3`, then `0.1.0b1`),
+so `--pre` is required — without it pip finds no installable version. Drop the
+flag once a suffix-less release is published.
 
 Requires Python ≥ 3.9 and `kontinuum-core >= 0.6.3` (pulled in automatically).
 

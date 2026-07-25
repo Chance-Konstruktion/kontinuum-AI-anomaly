@@ -83,13 +83,23 @@ To cut a release:
 2. Tag and push:
 
    ```bash
-   git tag vX.Y.Z        # e.g. v0.1.0a1 for the first experimental/alpha release
+   git tag vX.Y.Z        # e.g. v0.1.0; v0.1.0a1 for an alpha pre-release
    git push origin vX.Y.Z
    ```
 
    Versions must be [PEP 440](https://peps.python.org/pep-0440/)-valid — use a
    pre-release suffix (`a1`, `b1`, `rc1`) or `.devN` for experimental builds;
    words like `experimental` are not valid and PyPI will reject them.
+
+   A **suffix-less** tag is a final release: PyPI serves it to a plain
+   `pip install`, while a pre-release stays behind `--pre`. Keep the
+   `Development Status` classifier in `pyproject.toml` consistent with that
+   choice.
+
+   **A version number is spent the moment it uploads.** PyPI never allows the
+   same version to be uploaded again, even after you delete the release — so a
+   botched `0.1.0` costs you `0.1.0`, not a re-upload. Check the diff before
+   pushing the tag.
 
 3. The publish workflow builds the sdist + wheel, runs `twine check`, and
    uploads to PyPI. Watch the run under **Actions → Publish to PyPI**.

@@ -36,6 +36,14 @@ from ._timeutil import as_utc
 # silently burst-filtered and mistaken for silent ingestion drops.
 DEFAULT_STEP_SECONDS = 100
 
+# Core's circadian curve is a cosine peaking at 08:00, scaled into a
+# learning-rate multiplier as ``0.5 + base·0.8`` — 0.5 at 20:00 up to 1.3 at
+# 08:00. Hour 13 sits at base 0.629, i.e. a multiplier of 1.004: the phase at
+# which the circadian model neither boosts nor damps learning. Anchoring there
+# is how :class:`AgentMonitor` opts out of the rhythm without second-guessing
+# any of core's other tuning. (Hour 3 is the same point on the rising flank.)
+NEUTRAL_CIRCADIAN_HOUR = 13
+
 
 def slug(action: str) -> str:
     """Normalize an action name into a token-safe slug (``[a-z0-9_]``)."""
@@ -49,6 +57,12 @@ class AgentMonitor:
         persist_path: Optional path to a JSON brain file. If it exists it is
             loaded on construction; :meth:`save` writes back to it.
         agent_id: Label for this agent (surfaced in :meth:`diagnostics`).
+        circadian_hour: Phase at which core's circadian learning-rate
+            multiplier is held. Defaults to :data:`NEUTRAL_CIRCADIAN_HOUR`
+            (multiplier 1.0), so the time of day never moves the verdict — an
+            agent action stream has no day/night rhythm. Pass ``None`` to let
+            core follow the local wall clock as it does by default, which makes
+            results depend on when the process runs.
 
     Each action is given its **own room** (SPEC.md §3) via
     ``register_entity(f"switch.{slug}", ha_area=slug, domain="switch")``, which
@@ -62,9 +76,14 @@ class AgentMonitor:
         agent_id: str = "agent",
         *,
         step_seconds: float = DEFAULT_STEP_SECONDS,
+        circadian_hour: Optional[int] = NEUTRAL_CIRCADIAN_HOUR,
     ):
         self.persist_path = persist_path
         self.agent_id = agent_id
+        # Fixed phase for core's circadian learning-rate multiplier; ``None``
+        # restores core's own wall-clock behaviour. See
+        # :meth:`_pin_circadian_phase`.
+        self.circadian_hour = circadian_hour
         # Spacing on the virtual clock. Callers replaying genuinely
         # high-frequency streams can raise it so consecutive events aren't
         # silently burst-filtered (SPEC.md §5.5). Clamped to the burst-safe
@@ -113,6 +132,49 @@ class AgentMonitor:
         self._action_slug[action] = candidate
         return candidate
 
+    def _pin_circadian_phase(self, ts: datetime) -> None:
+        """Hold core's circadian learning-rate multiplier at a fixed phase.
+
+        ``Neurorhythms.get_circadian_multiplier()`` falls back to the **local
+        wall clock** when no hour is passed, mapping the time of day onto a
+        learning-rate multiplier between 0.5 and 1.3 — a 2.6× swing decided by
+        when the process happens to run — and then caches it for 60 s, so a
+        single clock reading governs a whole batch of events.
+
+        That is a home-automation concept: a household really does have a day
+        and a night. An **agent action stream does not**. An agent doing the
+        same work at 03:00 is not doing it more sluggishly, so letting the hour
+        move the learning rate only adds noise — and made verdicts depend on
+        when you ran the process. This package's own quality-gate test passed
+        only between 20:00 and 22:59 UTC because of it.
+
+        Anchoring the phase to the *event's* hour instead would be deterministic
+        but is worse in practice: the multiplier then drifts across a replay
+        that spans hours, and the drifting learning rate produced *more* false
+        alarms on a perfectly stable rhythm than any fixed phase did. So the
+        monitor pins one neutral phase (:data:`NEUTRAL_CIRCADIAN_HOUR`, where
+        the multiplier is 1.0) and opts out of the rhythm altogether. Pass
+        ``circadian_hour`` to :class:`AgentMonitor` to choose a different phase,
+        or ``None`` to restore core's own wall-clock behaviour.
+
+        Guarded with ``getattr`` like :meth:`diagnostics`, since this reaches
+        past the stable public API (SPEC.md §5.1): on a core build without the
+        hook, behaviour is simply left as-is.
+        """
+        if self.circadian_hour is None:
+            return
+        rhythms = getattr(self.engine, "neurorhythms", None)
+        pin = getattr(rhythms, "get_circadian_multiplier", None)
+        if pin is None:
+            return
+        try:
+            # Passing `hour` bypasses both the wall-clock fallback and the 60 s
+            # cache, so the phase is re-pinned before every ingest.
+            pin(hour=self.circadian_hour)
+        except TypeError:
+            # Older signature without the `hour` parameter: leave core alone.
+            pass
+
     def observe(
         self,
         action: str,
@@ -160,6 +222,11 @@ class AgentMonitor:
             # later default-timestamped call never lands "before" this one.
             if ts > self._clock:
                 self._clock = ts
+
+        # 4) Pin core's circadian phase to this event's hour, so the verdict is
+        #    decided by when the action happened rather than by when this
+        #    process happens to be running.
+        self._pin_circadian_phase(ts)
 
         snap = self.engine.observe(
             {

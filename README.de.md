@@ -51,8 +51,13 @@ bewusst weglässt:
 ## Installation
 
 ```bash
-pip install kontinuum-AI-anomaly
+pip install --pre kontinuum-AI-anomaly
 ```
+
+Alle bisherigen Releases sind **Pre-Releases** (`0.1.0a1`–`0.1.0a3`, dann
+`0.1.0b1`), deshalb ist `--pre` nötig — ohne das Flag findet pip keine
+installierbare Version. Sobald ein Release ohne Suffix erscheint, kann das Flag
+entfallen.
 
 Benötigt Python ≥ 3.9 und `kontinuum-core >= 0.6.3` (wird automatisch mitgezogen).
 
