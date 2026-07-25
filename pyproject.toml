@@ -21,10 +21,10 @@ license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
 requires-python = ">=3.9"
 classifiers = [
-    # 0.1.0 is the first release without a pre-release suffix, so PyPI serves it
-    # to a plain `pip install` (no `--pre`). Beta rather than Alpha reflects
-    # that: the feature set is complete and CI-covered, while the 0.x major
-    # still reserves the right to change the API.
+    # Beta rather than Alpha from 0.1.0b1 on: the feature set is complete and
+    # CI-covered (test matrix + lint + types). Still a pre-release, so PyPI keeps
+    # it behind `pip install --pre`, and the 0.x major reserves the right to
+    # change the API.
     "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",

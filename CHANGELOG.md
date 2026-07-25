@@ -6,20 +6,20 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 
 ## [Unreleased]
 
-## [0.1.0] — 2026-07-25
+## [0.1.0b1] — 2026-07-25
 
-**First release without a pre-release suffix** — a plain
-`pip install kontinuum-AI-anomaly` now resolves to it, where `0.1.0a1`–`0.1.0a3`
-needed `pip install --pre`. The trove classifier moves
-`Development Status :: 3 - Alpha` → `4 - Beta` to match: the feature set is
-complete and covered by CI (Python 3.9–3.12 × `kontinuum-core` 0.6.0/0.6.3,
-plus lint and type checks), while 0.x still reserves the right to change the API.
+**First beta.** Still a pre-release, so it stays behind
+`pip install --pre kontinuum-AI-anomaly` like the alphas before it. The trove
+classifier moves `Development Status :: 3 - Alpha` → `4 - Beta`: the feature set
+is complete and covered by CI (Python 3.9–3.12 × `kontinuum-core` 0.6.0/0.6.3,
+plus lint and type checks), but the API stays open to change and the suffix-less
+`0.1.0` is deliberately left unspent.
 
 Everything below landed after `0.1.0a3`, which is where the recurrence detector
-arrived. The headline of this release is not new features but a quality pass:
-six defects fixed, one of them reachable from the most natural call in the
-public API, plus a documentation pass that corrected two docs that were
-factually wrong.
+arrived. The headline is not new features but a quality pass: seven defects
+fixed — one reachable from the most natural call in the public API, one that made
+every verdict depend on the time of day — plus a documentation pass that
+corrected two docs that were factually wrong.
 
 > **Upgrading from `0.1.0a3` changes behaviour** — deliberately, since each item
 > was a defect, but read these three before you upgrade:
@@ -34,36 +34,6 @@ factually wrong.
 > - **The alert cooldown starts only on delivery.** An anomaly that reached no
 >   sink no longer suppresses the next one for that action, so you may see
 >   alerts that were previously (wrongly) swallowed.
-
-### Fixed
-
-- **Verdicts no longer depend on what time of day the process runs.** Core's
-  `Neurorhythms.get_circadian_multiplier()` reads the *local wall clock* when no
-  hour is passed and maps it onto a learning-rate multiplier from 0.5 (20:00) to
-  1.3 (08:00) — a 2.6× swing — then caches it for 60 s, so one clock reading
-  governed an entire batch or replay. Identical input therefore produced
-  different anomaly verdicts depending on when you ran it. `AgentMonitor` now
-  pins a neutral phase (hour 13, multiplier 1.0) before every ingest, so an
-  agent action stream — which has no day/night rhythm — is judged the same at
-  03:00 as at 15:00. Pass `circadian_hour=None` to restore core's behaviour, or
-  another hour to choose a different phase.
-
-  This was not theoretical: the repository's own pipeline quality gate passed
-  **only between 20:00 and 22:59 UTC** and failed the other 21 hours. CI had been
-  green because every merge happened to land inside that window. The full suite
-  now passes at all 24 hours, which is pinned by
-  `tests/test_circadian_and_warmup.py`.
-
-### Changed
-
-- **The pipeline quality gate now tests the shipped configuration.** It used to
-  lower `AdaptiveThresholdStrategy.warmup` from 100 to 25 so the adaptive path
-  would engage inside a 40-cycle run, which asks the robust median+MAD estimator
-  to judge on a quarter of its evidence — and at that sensitivity a *perfectly
-  stable* rhythm does get flagged. The run is now long enough (120 cycles) to
-  reach the real warmup, so the gate asserts the same strict "stable actions stay
-  quiet" property against the defaults users actually get. The lowered-warmup
-  weakness is kept as an executable note rather than dropped.
 
 ### Added
 
@@ -95,8 +65,24 @@ factually wrong.
   the action vocabulary and is never evicted. The bounded-vocabulary assumption
   is now also an honest-limitations bullet in both READMEs.
 
-
 ### Fixed
+
+- **Verdicts no longer depend on what time of day the process runs.** Core's
+  `Neurorhythms.get_circadian_multiplier()` reads the *local wall clock* when no
+  hour is passed and maps it onto a learning-rate multiplier from 0.5 (20:00) to
+  1.3 (08:00) — a 2.6× swing — then caches it for 60 s, so one clock reading
+  governed an entire batch or replay. Identical input therefore produced
+  different anomaly verdicts depending on when you ran it. `AgentMonitor` now
+  pins a neutral phase (hour 13, multiplier 1.0) before every ingest, so an
+  agent action stream — which has no day/night rhythm — is judged the same at
+  03:00 as at 15:00. Pass `circadian_hour=None` to restore core's behaviour, or
+  another hour to choose a different phase.
+
+  This was not theoretical: the repository's own pipeline quality gate passed
+  **only between 20:00 and 22:59 UTC** and failed the other 21 hours. CI had been
+  green because every merge happened to land inside that window. The full suite
+  now passes at all 24 hours, which is pinned by
+  `tests/test_circadian_and_warmup.py`.
 
 - **`docs/INSIGHTS.md` §5 documented the wrong learning-state thresholds.** It
   claimed the `mature` gate sits at 2000 events; core's `_learning_state()`
@@ -152,6 +138,15 @@ factually wrong.
   minimum levels are now held together.
 
 ### Changed
+
+- **The pipeline quality gate now tests the shipped configuration.** It used to
+  lower `AdaptiveThresholdStrategy.warmup` from 100 to 25 so the adaptive path
+  would engage inside a 40-cycle run, which asks the robust median+MAD estimator
+  to judge on a quarter of its evidence — and at that sensitivity a *perfectly
+  stable* rhythm does get flagged. The run is now long enough (120 cycles) to
+  reach the real warmup, so the gate asserts the same strict "stable actions stay
+  quiet" property against the defaults users actually get. The lowered-warmup
+  weakness is kept as an executable note rather than dropped.
 
 - **Recurrence ingestion is ~65× faster and no longer scales with the number of
   tracked actions.** `RecurrenceDetector.record()` pruned the entire ring on
