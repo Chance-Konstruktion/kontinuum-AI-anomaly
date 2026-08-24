@@ -49,8 +49,8 @@ dev = ["pytest>=7"]
 kontinuum-AI-anomaly = "kontinuum_ai_anomaly.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/Chance-Konstruktion/kontinuum-AI-anomaly"
-Issues = "https://github.com/Chance-Konstruktion/kontinuum-AI-anomaly/issues"
+Homepage = "https://gitlab.schanz.ipv64.net/chance-konstruktion/kontinuum-ai-anomaly"
+Issues = "https://gitlab.schanz.ipv64.net/chance-konstruktion/kontinuum-ai-anomaly/-/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]

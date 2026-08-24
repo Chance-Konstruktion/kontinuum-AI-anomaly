@@ -7,7 +7,7 @@ package; contributions that keep it that way — a thin, honest layer over
 ## Development setup
 
 ```bash
-git clone https://github.com/Chance-Konstruktion/kontinuum-AI-anomaly
+git clone https://gitlab.schanz.ipv64.net/chance-konstruktion/kontinuum-ai-anomaly
 cd kontinuum-AI-anomaly
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
