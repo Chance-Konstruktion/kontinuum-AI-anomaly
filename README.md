@@ -1,17 +1,17 @@
 # kontinuum-AI-anomaly
 
-[![CI](https://github.com/Chance-Konstruktion/kontinuum-AI-anomaly/actions/workflows/ci.yml/badge.svg)](https://github.com/Chance-Konstruktion/kontinuum-AI-anomaly/actions/workflows/ci.yml)
+[![Pipeline](https://gitlab.schanz.ipv64.net/chance-konstruktion/kontinuum-ai-anomaly/badges/main/pipeline.svg)](https://gitlab.schanz.ipv64.net/chance-konstruktion/kontinuum-ai-anomaly/-/pipelines)
 [![PyPI](https://img.shields.io/pypi/v/kontinuum-ai-anomaly.svg)](https://pypi.org/project/kontinuum-AI-anomaly/)
 [![Python versions](https://img.shields.io/pypi/pyversions/kontinuum-ai-anomaly.svg)](https://pypi.org/project/kontinuum-AI-anomaly/)
 [![Downloads](https://img.shields.io/pypi/dm/kontinuum-ai-anomaly.svg)](https://pypi.org/project/kontinuum-AI-anomaly/)
-[![kontinuum-core](https://img.shields.io/badge/kontinuum--core-%E2%89%A50.6.3-4c1.svg)](https://github.com/Chance-Konstruktion/kontinuum-core)
+[![kontinuum-core](https://img.shields.io/badge/kontinuum--core-%E2%89%A50.6.3-4c1.svg)](https://gitlab.schanz.ipv64.net/chance-konstruktion/kontinuum-core)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 
 **A novelty & anomaly monitor for agent action streams.**
 Point it at what your agent *does* — not what a home does — and it learns the
 agent's normal rhythm, then tells you when a step doesn't fit.
 
-Built on [`kontinuum-core`](https://github.com/Chance-Konstruktion/kontinuum-core),
+Built on [`kontinuum-core`](https://gitlab.schanz.ipv64.net/chance-konstruktion/kontinuum-core),
 a neuro-inspired learning engine. This package is the layer on top that turns the
 engine's raw signal into a usable verdict, keeps a history, and can alert you.
 
