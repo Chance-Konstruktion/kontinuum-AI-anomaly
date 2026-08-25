@@ -50,7 +50,7 @@ kontinuum-AI-anomaly = "kontinuum_ai_anomaly.cli:main"
 
 [project.urls]
 Homepage = "https://gitlab.schanz.ipv64.net/chance-konstruktion/kontinuum-ai-anomaly"
-Issues = "https://gitlab.schanz.ipv64.net/chance-konstruktion/kontinuum-ai-anomaly/-/issues"
+Issues = "https://gitlab.schanz.ipv64.net/chance-konstruktion/kontinuum-ai-anomaly/-/work_items"
 
 [tool.setuptools.packages.find]
 where = ["."]
