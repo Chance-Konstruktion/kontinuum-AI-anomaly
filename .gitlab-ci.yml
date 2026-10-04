@@ -73,6 +73,37 @@ pytest:
     - exists:
         - tests/**/*.py
 
+# ── Messstand (Stufe 1, Ticket #1) ────────────────────────────────────
+# Faehrt den Messstand: synthetische Agentenspuren, die dummen Gegner
+# B0/B1/B2 gegen die AnomalyWatch-Kandidaten. Die Tafel kommt als
+# Artefakt heraus. Entwicklung nur auf Saaten < 1000 — der versiegelte
+# Pruefsatz faehrt getrennt (Claude).
+messstand:
+  stage: test
+  image: python:3.13
+  cache:
+    key: pip
+    paths:
+      - .cache/pip
+  before_script:
+    - pip install -q kontinuum-core
+    # Aufschreiben, womit gemessen wurde — dieselbe Ehrlichkeit wie im
+    # pytest-Job: zwei Laeufe desselben Commits muessen dieselben
+    # Pakete nachweisen koennen.
+    - pip freeze > installierte-pakete-messstand.txt
+  script:
+    - python -m benchmarks.messstand --saaten 7,23,42,101,255 --ziel artefakte
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - installierte-pakete-messstand.txt
+      - artefakte/messstand_tafel.md
+      - artefakte/messstand.json
+  rules:
+    - exists:
+        - benchmarks/messstand.py
+
 # ── hassfest ──────────────────────────────────────────────────────────
 # Home Assistants eigener Manifest-Pruefer, aus dem offiziellen Image.
 # Prueft jede Integration unterhalb von custom_components/ einzeln.
