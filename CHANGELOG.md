@@ -6,6 +6,21 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- **Ready for kontinuum-core 0.7.** `AgentMonitor` builds its engine with
+  `claustrum=False, lagebild=False` when the core knows these switches. Core
+  0.7 adds a Lagebild (the joint state of all devices) and a prediction market
+  on top of the anomaly path; an agent stream has no device state and the
+  monitor never reads the predictions, so both would only double the
+  per-event work. The verdict is unaffected: the Messstand table (5 seeds) is
+  bit-identical on core 0.6.3 and on core 0.7, and the suite passes on both.
+  Older cores keep their single path.
+- Note on the circadian pin (`NEUTRAL_CIRCADIAN_HOUR`): core 0.7 switches the
+  fixed circadian curve off at the root (multiplier 1.0, event hour instead of
+  the wall clock), so on that core the pin is a no-op. It stays for older
+  cores.
+
 ## [0.1.0b1] — 2026-07-25
 
 **First beta.** Still a pre-release, so it stays behind

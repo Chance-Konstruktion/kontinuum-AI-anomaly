@@ -119,3 +119,13 @@ def test_diagnostics_graceful_degradation():
     diag = m.diagnostics()
     assert diag["available"] is False
     assert "reason" in diag
+
+
+def test_engine_skips_the_parts_it_never_reads():
+    """kontinuum-core >= 0.7: no Lagebild and no prediction market for an
+    agent stream (no device state; predictions are never read). On an older
+    core the attributes simply do not exist."""
+    m = AgentMonitor()
+    assert getattr(m.engine, "claustrum", None) is None
+    assert getattr(m.engine, "association_cortex", None) is None
+    assert m.observe("plan")["is_novel"] is True
