@@ -60,6 +60,9 @@ include = ["kontinuum_ai_anomaly*"]
 kontinuum_ai_anomaly = ["py.typed"]
 
 [tool.setuptools_scm]
+# Tags der Form `github/vX.Y.Z` (vom Spiegel zurueckgekommen) duerfen ein
+# Praefix mit `/` haben, sonst bricht die Versionsableitung ab.
+tag_regex = '^(?:[\w./-]+[-/])?(?P<version>[vV]?\d+(?:\.\d+){0,2}[^\+]*)(?:\+.*)?$'
 # Write the resolved version to an importable file so runtime __version__ and
 # the built package metadata always agree. The file is generated (git-ignored).
 version_file = "kontinuum_ai_anomaly/_version.py"
