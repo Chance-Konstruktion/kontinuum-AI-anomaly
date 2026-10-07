@@ -45,6 +45,23 @@ DEFAULT_STEP_SECONDS = 100
 NEUTRAL_CIRCADIAN_HOUR = 13
 
 
+def _build_engine() -> KontinuumEngine:
+    """The engine for an agent action stream.
+
+    kontinuum-core 0.7 adds a Lagebild (the joint state of all devices) and a
+    prediction market (the Claustrum) on top of the anomaly path. An agent
+    stream has no device state, and this monitor never reads the predictions
+    — both would only cost CPU (roughly twice the per-event work). The
+    verdict rests on ``surprise``/``anomaly``, which neither touches: the
+    Messstand table is bit-identical with and without them. Older cores do
+    not know the switches and keep their single path.
+    """
+    try:
+        return KontinuumEngine(claustrum=False, lagebild=False)
+    except TypeError:  # kontinuum-core < 0.7
+        return KontinuumEngine()
+
+
 def slug(action: str) -> str:
     """Normalize an action name into a token-safe slug (``[a-z0-9_]``)."""
     return re.sub(r"[^a-z0-9]+", "_", str(action).lower()).strip("_") or "action"
@@ -89,7 +106,7 @@ class AgentMonitor:
         # silently burst-filtered (SPEC.md §5.5). Clamped to the burst-safe
         # default minimum so a too-small value can't reintroduce silent drops.
         self.step_seconds = max(float(step_seconds), DEFAULT_STEP_SECONDS)
-        self.engine = KontinuumEngine()
+        self.engine = _build_engine()
         self._registered: set[str] = set()
         self._state_on: Dict[str, bool] = {}
         self._seen_actions: set[str] = set()
