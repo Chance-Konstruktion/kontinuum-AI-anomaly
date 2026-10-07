@@ -213,7 +213,9 @@ def schreibe_spur(spur: Spur, pfad) -> None:
     zeilen = [json.dumps(spur.kopf.als_json(), ensure_ascii=False)]
     for e in spur.ereignisse:
         zeilen.append(json.dumps(e.als_json(), ensure_ascii=False))
-    ziel.write_text("\n".join(zeilen) + "\n", encoding="utf-8", newline="\n")
+    # Path.write_text kennt newline= erst ab Python 3.10 (Projekt: >=3.9).
+    with open(ziel, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(zeilen) + "\n")
 
 
 # ---------------------------------------------------------------------------
