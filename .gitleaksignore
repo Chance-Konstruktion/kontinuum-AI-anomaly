@@ -1,0 +1,4 @@
+# Attrappen-Token im Test des ZCode-Beispiels (Commit vor dem Zusammenfassen,
+# kein echtes Token): tests/test_example_zcode_watch.py, 08.10.2026
+4958a65a063bac444f69247b71eaeced2cc29774:tests/test_example_zcode_watch.py:generic-api-key:12
+4958a65a063bac444f69247b71eaeced2cc29774:tests/test_example_zcode_watch.py:gitlab-pat:12
