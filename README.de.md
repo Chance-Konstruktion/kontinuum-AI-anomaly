@@ -117,6 +117,11 @@ Siehe [`examples/openclaw_demo.py`](examples/openclaw_demo.py) für einen
 Ende-zu-Ende-Lauf, der einen Rhythmus einübt, eine Neuheit einstreut, alarmiert
 und ein Dashboard rendert.
 
+Für echte Agenten beobachtet [`examples/zcode_watch.py`](examples/zcode_watch.py)
+die Werkzeugaufrufe von Coding-Agenten in [ZCode](https://github.com/zai-org/ZCode):
+ein Wächter je Modell, nur lesend, und von Shell-Befehlen zählt nur der
+Programmname — Geheimnisse in Befehlszeilen erreichen den Monitor nie.
+
 ---
 
 ## Worin es gut ist — und worin nicht

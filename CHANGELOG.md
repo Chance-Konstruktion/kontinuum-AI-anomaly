@@ -6,6 +6,16 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- **`examples/zcode_watch.py`: a watcher for real coding agents.** Reads the
+  tool calls that ZCode logs (read-only), runs one `AnomalyWatch` per model
+  family through `MultiAgentWatch`, logs flagged steps as JSON lines and writes
+  an HTML overview. From shell commands only the program name is kept: agents
+  put access tokens into command lines, and those must never reach a ledger.
+  It runs next to our own agent desk (about 14 000 calls of DeepSeek, Kimi and
+  GLM as the learning phase). Tests pin the privacy rule against a fake DB.
+
 ### Changed
 
 - **Ready for kontinuum-core 0.7.** `AgentMonitor` builds its engine with
