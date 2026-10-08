@@ -113,6 +113,11 @@ straight back to your agent's own code.
 See [`examples/openclaw_demo.py`](examples/openclaw_demo.py) for an end-to-end
 run that rehearses a rhythm, injects a novelty, alerts, and renders a dashboard.
 
+For real agents, [`examples/zcode_watch.py`](examples/zcode_watch.py) watches the
+tool calls of coding agents in [ZCode](https://github.com/zai-org/ZCode) — one
+watch per model, read-only, and shell commands count by program name only, so
+secrets in command lines never reach the monitor.
+
 ---
 
 ## Command line
