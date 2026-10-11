@@ -6,6 +6,29 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- **Sommerzeit in `zeitmuster` (review of !7).** `FunkstilleStrategy` and
+  `StundenprofilStrategy` formed their hours from the UTC labels of the
+  (monitor-normalized) timestamps. A constant UTC offset maps hour profiles
+  bijectively — but Germany turns its clocks twice a year, and after a
+  switch every local hour sits one UTC hour off: the hour profile would
+  cry "never seen" at the edge of the workday, and the silence verdict
+  would rest on shifted hours. Hours (and the distinct-day warm-up gate)
+  are now formed on the LOCAL clock of a configurable ``zone`` (default
+  ``Europe/Berlin``, the house data; a naive ``ts`` is still read as UTC,
+  the package rule). Two tests pin a stream across 25.10. — they fail on
+  the old UTC-hour arithmetic.
+
+### Changed
+
+- **`SchwallStrategy` window standings are bounded** (review of !7):
+  ``_fenster_staende`` grows no longer without limit and the median is no
+  longer recomputed over an ever-longer list. A bounded
+  ``deque(maxlen=fenster_gedaechtnis)`` (default 1000) keeps the bar
+  "against the agent's own recent rhythm" and the memory O(1) for a
+  monitor that runs for months.
+
 ### Added
 
 - **Stufe 2: the three time-pattern strategies (`zeitmuster`).** The Stufe-1

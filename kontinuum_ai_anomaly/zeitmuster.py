@@ -29,9 +29,14 @@ adaptive/sequence strategies:
   settings one had to guess would be a poor benchmark peer.
 
 Timestamps: the strategies read ``obs["ts"]`` (a tz-aware datetime, UTC
-after the monitor's normalization). A constant UTC offset preserves the
-unseen-hour semantics bijectively, so hour profiles learned in UTC judge
-local-time off-hours correctly.
+after the monitor's normalization; a naive one is read as UTC, the
+package rule). Hours are formed on the LOCAL clock of the strategy's
+``zone`` (default Europe/Berlin, the house data): a constant UTC offset
+would map hour profiles bijectively, but Germany turns its clocks twice
+a year — after a switch every local hour sits one UTC hour off, and a
+UTC-hour profile would cry "never seen" at the edge of the workday.
+Learning and judging read the same local clock, so the day shape
+survives the switch (a stream across 25.10. is pinned in the tests).
 """
 from __future__ import annotations
 
@@ -39,8 +44,22 @@ from collections import deque
 from datetime import datetime
 from statistics import median
 from typing import Any, Deque, Dict, List, Optional, Set
+from zoneinfo import ZoneInfo
 
+from ._timeutil import as_utc
 from .scoring import AnomalyScore, CompositeStrategy, ScoringStrategy
+
+#: Die Haus-Zeitzone der Strategien — die Ortszeit der gemessenen Agenten.
+HAUS_ZONE = ZoneInfo("Europe/Berlin")
+
+
+def _ortsstunde(ts: datetime, zone: ZoneInfo) -> int:
+    """The event's hour on the LOCAL clock of ``zone``.
+
+    A naive ``ts`` is read as UTC first (the package rule), so no wall
+    clock of the running machine leaks into a verdict.
+    """
+    return as_utc(ts).astimezone(zone).hour
 
 
 def _ts_aus(obs: Dict[str, Any]) -> Optional[datetime]:
@@ -65,6 +84,11 @@ class SchwallStrategy:
     relative factor so a naturally chatty agent's bar rises with its own
     rhythm. Judgement activates only after ``warmlauf`` windows, exactly
     like the B2 baseline.
+
+    The window standings live in a bounded deque (``fenster_gedaechtnis``):
+    a monitor that runs for months must not grow slower and hungrier
+    with every event. The bar stays "against the agent's own recent
+    rhythm" and the memory stays O(1).
     """
 
     name = "schwall"
@@ -75,13 +99,15 @@ class SchwallStrategy:
         schwall_min: int = 10,
         schwall_faktor: float = 5.0,
         warmlauf: int = 100,
+        fenster_gedaechtnis: int = 1000,
     ) -> None:
         self.fenster_s = float(fenster_s)
         self.schwall_min = int(schwall_min)
         self.schwall_faktor = float(schwall_faktor)
         self.warmlauf = int(warmlauf)
+        self.fenster_gedaechtnis = int(fenster_gedaechtnis)
         self._im_fenster: Deque[datetime] = deque()
-        self._fenster_staende: List[int] = []
+        self._fenster_staende: Deque[int] = deque(maxlen=self.fenster_gedaechtnis)
 
     def evaluate(self, obs: Dict[str, Any]) -> AnomalyScore:
         ts = _ts_aus(obs)
@@ -138,12 +164,21 @@ class FunkstilleStrategy:
     midpoint of the hole lies in an hour the agent has already been seen
     working: the night pause between two workdays falls into never-seen
     hours and is the evening off, not an outage (the B2 school).
+
+    Hours are LOCAL hours in ``zone`` (default Europe/Berlin): across a
+    DST switch the UTC hour labels drift away from the day shape, and
+    the silence verdict would rest on shifted hours.
     """
 
     name = "funkstille"
 
-    def __init__(self, funkstille_s: float = 7200.0) -> None:
+    def __init__(
+        self,
+        funkstille_s: float = 7200.0,
+        zone: ZoneInfo = HAUS_ZONE,
+    ) -> None:
         self.funkstille_s = float(funkstille_s)
+        self.zone = zone
         self._letzter_ts: Optional[datetime] = None
         self._stunden: Set[int] = set()
 
@@ -166,12 +201,12 @@ class FunkstilleStrategy:
             loch_s = (ts - self._letzter_ts).total_seconds()
             if loch_s > self.funkstille_s:
                 mitte = self._letzter_ts + (ts - self._letzter_ts) / 2
-                if mitte.hour in self._stunden:
+                if _ortsstunde(mitte, self.zone) in self._stunden:
                     stille = True
 
         # Learn — after the verdict.
         self._letzter_ts = ts
-        self._stunden.add(ts.hour)
+        self._stunden.add(_ortsstunde(ts, self.zone))
 
         reasons: List[str] = []
         if stille and loch_s is not None:
@@ -201,13 +236,23 @@ class StundenprofilStrategy:
     new hour is just an unexplored schedule, not an anomaly (the B2
     school — a stream living in its activity window has seen every one
     of its hours after one repeated day).
+
+    Hours are LOCAL hours in ``zone`` (default Europe/Berlin), and the
+    distinct days are LOCAL days: both belong to the day shape, and both
+    survive a DST switch that way.
     """
 
     name = "stundenprofil"
 
-    def __init__(self, stunden_warmlauf: int = 150, min_tage: int = 2) -> None:
+    def __init__(
+        self,
+        stunden_warmlauf: int = 150,
+        min_tage: int = 2,
+        zone: ZoneInfo = HAUS_ZONE,
+    ) -> None:
         self.stunden_warmlauf = int(stunden_warmlauf)
         self.min_tage = int(min_tage)
+        self.zone = zone
         self._stunden: Set[int] = set()
         self._tage: Set[str] = set()
         self._ereignisse = 0
@@ -225,21 +270,22 @@ class StundenprofilStrategy:
             )
 
         # Judge — with the hours and days learned BEFORE this event.
+        stunde = _ortsstunde(ts, self.zone)
         stunde_fremd = (
             len(self._tage) >= self.min_tage
             and self._ereignisse >= self.stunden_warmlauf
-            and ts.hour not in self._stunden
+            and stunde not in self._stunden
         )
 
         # Learn — after the verdict.
-        self._stunden.add(ts.hour)
-        self._tage.add(ts.date().isoformat())
+        self._stunden.add(stunde)
+        self._tage.add(as_utc(ts).astimezone(self.zone).date().isoformat())
         self._ereignisse += 1
 
         reasons: List[str] = []
         if stunde_fremd:
             reasons.append(
-                f"off-hours: hour {ts.hour:02d} never seen "
+                f"off-hours: hour {stunde:02d} never seen "
                 f"({self._ereignisse} events over {len(self._tage)} days)"
             )
         return AnomalyScore(
@@ -272,6 +318,7 @@ def zeitmuster_strategy() -> CompositeStrategy:
 
 
 __all__ = [
+    "HAUS_ZONE",
     "SchwallStrategy",
     "FunkstilleStrategy",
     "StundenprofilStrategy",

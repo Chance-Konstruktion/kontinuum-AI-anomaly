@@ -165,6 +165,61 @@ def test_watch_with_zeitmuster_flags_burst():
     assert any(f.is_anomaly for f in flags)
 
 
+# ---------------------------------------------------------------------------
+# Sommerzeit — a stream across 25.10. (the monitor hands ts as UTC; the
+# hours must be judged on the local clock, not on shifted UTC labels)
+# ---------------------------------------------------------------------------
+def test_sommerzeit_funkstille_rechnet_in_ortsstunden():
+    """A hole across the DST switch is judged on the LOCAL clock.
+
+    Seen: local 09 (07:00 UTC, CEST) and local 07 (06:30 UTC, CET). The
+    4 h hole's midpoint is local 09:30 — a seen hour, radio silence.
+    Under UTC-hour arithmetic the midpoint (08 UTC) would hide it.
+    """
+    s = FunkstilleStrategy()
+    s.evaluate(_obs(ts=datetime(2026, 10, 22, 7, 0, tzinfo=UTC)))     # Do 09:00
+    s.evaluate(_obs(ts=datetime(2026, 10, 25, 6, 30, tzinfo=UTC)))    # So 07:30
+    rueckkehr = s.evaluate(_obs(ts=datetime(2026, 10, 25, 10, 30, tzinfo=UTC)))
+    assert rueckkehr.is_anomaly, \
+        "midpoint local hour 9 is seen — the switch must not hide the silence"
+    assert any("silence" in r for r in rueckkehr.reasons)
+
+
+def test_sommerzeit_stundenprofil_uebersteht_die_umstellung():
+    """The SAME local hour after the switch is no off-hours event.
+
+    Two days at local 09 (07:xx UTC, CEST); the Monday after the switch
+    local 09 is 08:00 UTC — under UTC-hour arithmetic the strategy would
+    cry "never seen" at the edge of the workday.
+    """
+    s = StundenprofilStrategy(stunden_warmlauf=2, min_tage=2)
+    for tag in (23, 24):  # Thursday/Friday before the switch
+        s.evaluate(_obs(ts=datetime(2026, 10, tag, 7, 10, tzinfo=UTC)))
+        s.evaluate(_obs(ts=datetime(2026, 10, tag, 7, 20, tzinfo=UTC)))
+    gleiche_stunde = s.evaluate(
+        _obs(ts=datetime(2026, 10, 26, 8, 0, tzinfo=UTC)))  # Mo 09:00 local
+    assert not gleiche_stunde.is_anomaly, \
+        "local hour 9 was seen — the UTC shift must not fake an unseen hour"
+    # Control: the strategy still bites after the switch.
+    nacht = s.evaluate(
+        _obs(ts=datetime(2026, 10, 26, 22, 0, tzinfo=UTC)))  # 23:00 local
+    assert nacht.is_anomaly
+    assert any("off-hours" in r for r in nacht.reasons)
+
+
+# ---------------------------------------------------------------------------
+# Bounded memory — the monitor runs for months
+# ---------------------------------------------------------------------------
+def test_schwall_fenstergedaechtnis_bleibt_begrenzt():
+    """Window standings live in a bounded deque: months of events must
+    not grow memory or median cost (the review's second point)."""
+    s = SchwallStrategy(fenster_gedaechtnis=50)
+    start = datetime(2026, 3, 2, 9, 0, 0, tzinfo=UTC)
+    for i in range(200):
+        s.evaluate(_obs(ts=start + timedelta(seconds=30 * i)))
+    assert len(s._fenster_staende) == 50
+
+
 def test_zeitmuster_preset_round_trip():
     """The zeitmuster preset survives an export/import round-trip."""
     strat = builtin_presets()["zeitmuster"]
