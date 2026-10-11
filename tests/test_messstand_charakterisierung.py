@@ -176,6 +176,15 @@ def test_messstand_ende_zu_ende_liefert_alle_arten():
         assert all("streuung" in z for z in differenz.values())
 
 
+def _core_version():
+    from importlib.metadata import version
+    return tuple(int(x) for x in version("kontinuum-core").split(".")[:3])
+
+
+# Die eine Kern-Flagge ist mit dem Kern ab 0.6.3 gemessen (Sonde 17387);
+# das alte Matrix-Bein 0.6.0 hat einen anderen Kern-Pfad und flaggt dort nicht.
+@pytest.mark.skipif(_core_version() < (0, 6, 3),
+                    reason="Kern-Flagge gilt fuer kontinuum-core >= 0.6.3")
 def test_kern_pfad_erste_gemessene_flagge():
     """Der Erstversuch der versiegelten Sonde (deepseek, Notiz 17387):
     Tor 3 — der Kern-Nulltest — fiel durch GENAU EINE Flagge. Das ist
