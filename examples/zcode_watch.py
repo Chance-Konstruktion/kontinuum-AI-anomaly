@@ -157,7 +157,7 @@ class ZCodeWatch:
                     continue
                 model = msg.get("modelId") or session_model.get(sid) or ""
                 agent = model_family("%s %s" % (msg.get("providerId"), model))
-                ts = datetime.datetime.fromtimestamp(ms / 1000)
+                ts = datetime.datetime.fromtimestamp(ms / 1000, tz=datetime.timezone.utc).astimezone()
                 verdict = self.multi.observe(agent, action_name(part), detail=sid, ts=ts)
                 self.state["seen"] += 1
                 self.state["flagged"] += int(bool(verdict.is_anomaly))
@@ -191,7 +191,7 @@ class ZCodeWatch:
             "Shell commands count by program name only.</p>"
             "<table><tr><th>Model family</th><th>flagged (all)</th><th>last 24 h</th></tr>%s</table>"
             "<h2>Correlated clusters</h2><pre>%s</pre>"
-            % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), self.state["seen"],
+            % (datetime.datetime.now(datetime.timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M"), self.state["seen"],
                self.state["flagged"], "".join(rows),
                json.dumps(clusters[-20:], ensure_ascii=False, indent=1, default=str)))
         with open(self.html, "w", encoding="utf-8") as f:

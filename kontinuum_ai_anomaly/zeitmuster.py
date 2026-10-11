@@ -47,7 +47,7 @@ from typing import Any, Deque, Dict, List, Optional, Set
 from zoneinfo import ZoneInfo
 
 from ._timeutil import as_utc
-from .scoring import AnomalyScore, CompositeStrategy, ScoringStrategy
+from .scoring import AnomalyScore, CompositeStrategy
 
 #: Die Haus-Zeitzone der Strategien — die Ortszeit der gemessenen Agenten.
 HAUS_ZONE = ZoneInfo("Europe/Berlin")
