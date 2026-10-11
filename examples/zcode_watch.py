@@ -25,6 +25,7 @@ The first pass replays the whole history as the learning phase (about 14 000
 calls took 24 s on a small VM); after that only new calls are read.
 """
 import argparse
+import dataclasses
 import datetime
 import json
 import logging
@@ -126,7 +127,7 @@ class ZCodeWatch:
 
     def _log_alert(self, rec):
         with open(self.alert_log, "a", encoding="utf-8") as f:
-            f.write(json.dumps(rec.as_dict(), ensure_ascii=False, default=str) + "\n")
+            f.write(json.dumps(dataclasses.asdict(rec), ensure_ascii=False, default=str) + "\n")
 
     def poll(self):
         """Read new tool calls once; return how many were observed."""
