@@ -428,3 +428,20 @@ a thin, additive layer over `kontinuum-core` (core stays untouched).
 - Licensed **AGPL-3.0**, deliberately, because core is AGPL-3.0 and this package
   imports it (SPEC §5.2). Not legal advice.
 - Depends on `kontinuum-core>=0.6.0`.
+
+### Added
+
+- **Niederlage-Wache für die erste gemessene Kern-Pfad-Flagge**
+  (Erstversuch der versiegelten Sonde, deepseek Notiz 17387): Tor 3 des
+  Messvertrags fiel durch GENAU EINE Flagge — watch-voll flaggt auf der
+  enthüllten Erstversuch-Saat 535396 (eifrig) das normale
+  ``editieren``-Ereignis Index 1457, das watch-ohne-kern durchlässt
+  (1 unter 20 301 normalen Ereignissen; die Entwicklungssaaten bleiben
+  bei 0,00). ``test_kern_pfad_erste_gemessene_flagge`` pinnt beide
+  Seiten: die 0,00 der Entwicklungssaaten und die eine Flagge des
+  versiegelten Satzes. README-Wortlaut präzisiert («trägt 0,00» →
+  «erste messbare Flagge auf dem versiegelten Satz») und die
+  Preiszeile auf den Stand der Sommerzeit-Heilung korrigiert
+  (+1,6 gegen B0, +0,3 gegen watch-voll — die veröffentlichte
+  10,1-Zeile war der UTC-Tag-Stand vorher; Gegenprüfung Notizen
+  17382/17383).
