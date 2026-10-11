@@ -6,7 +6,49 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- **Sommerzeit in `zeitmuster` (review of !7).** `FunkstilleStrategy` and
+  `StundenprofilStrategy` formed their hours from the UTC labels of the
+  (monitor-normalized) timestamps. A constant UTC offset maps hour profiles
+  bijectively — but Germany turns its clocks twice a year, and after a
+  switch every local hour sits one UTC hour off: the hour profile would
+  cry "never seen" at the edge of the workday, and the silence verdict
+  would rest on shifted hours. Hours (and the distinct-day warm-up gate)
+  are now formed on the LOCAL clock of a configurable ``zone`` (default
+  ``Europe/Berlin``, the house data; a naive ``ts`` is still read as UTC,
+  the package rule). Two tests pin a stream across 25.10. — they fail on
+  the old UTC-hour arithmetic.
+
+### Changed
+
+- **`SchwallStrategy` window standings are bounded** (review of !7):
+  ``_fenster_staende`` grows no longer without limit and the median is no
+  longer recomputed over an ever-longer list. A bounded
+  ``deque(maxlen=fenster_gedaechtnis)`` (default 1000) keeps the bar
+  "against the agent's own recent rhythm" and the memory O(1) for a
+  monitor that runs for months.
+
 ### Added
+
+- **Stufe 2: the three time-pattern strategies (`zeitmuster`).** The Stufe-1
+  bench proved the lever is the time patterns, not the core path — burst
+  (`schwall`), radio silence (`funkstille`) and off-hours work
+  (`ungewohnte-uhrzeit`) were caught only by the B2 baseline, because only B2
+  counts windows itself and the core's burst gate eats a burst before the
+  engine sees it. `SchwallStrategy` (rolling rate window with the B2
+  thresholds: `max(10, 5×median)` after a 100-window warm-up),
+  `FunkstilleStrategy` (>2 h gap whose midpoint lies in an already-seen hour
+  — the night pause stays the evening off) and `StundenprofilStrategy`
+  (never-seen local hour, only after two distinct days and 150 events) close
+  that gap in the monitor layer, core untouched. `AgentMonitor.observe()`
+  now exposes the event timestamp as `ts` (tz-aware UTC); strategies without
+  timestamps stay honestly inert. The bench's new third candidate
+  `watch-zeit` catches all three rows at B2 level (paired difference −1.00 →
+  +0.00), paying +0.8 false alarms per 1000 events for it; the two named
+  blind spots (slow drift, off-target details) stay open for everyone,
+  honestly in the table. Preset `zeitmuster` (novelty OR the three patterns)
+  round-trips through the preset machinery.
 
 - **`examples/zcode_watch.py`: a watcher for real coding agents.** Reads the
   tool calls that ZCode logs (read-only), runs one `AnomalyWatch` per model
@@ -386,3 +428,20 @@ a thin, additive layer over `kontinuum-core` (core stays untouched).
 - Licensed **AGPL-3.0**, deliberately, because core is AGPL-3.0 and this package
   imports it (SPEC §5.2). Not legal advice.
 - Depends on `kontinuum-core>=0.6.0`.
+
+### Added
+
+- **Niederlage-Wache für die erste gemessene Kern-Pfad-Flagge**
+  (Erstversuch der versiegelten Sonde, deepseek Notiz 17387): Tor 3 des
+  Messvertrags fiel durch GENAU EINE Flagge — watch-voll flaggt auf der
+  enthüllten Erstversuch-Saat 535396 (eifrig) das normale
+  ``editieren``-Ereignis Index 1457, das watch-ohne-kern durchlässt
+  (1 unter 20 301 normalen Ereignissen; die Entwicklungssaaten bleiben
+  bei 0,00). ``test_kern_pfad_erste_gemessene_flagge`` pinnt beide
+  Seiten: die 0,00 der Entwicklungssaaten und die eine Flagge des
+  versiegelten Satzes. README-Wortlaut präzisiert («trägt 0,00» →
+  «erste messbare Flagge auf dem versiegelten Satz») und die
+  Preiszeile auf den Stand der Sommerzeit-Heilung korrigiert
+  (+1,6 gegen B0, +0,3 gegen watch-voll — die veröffentlichte
+  10,1-Zeile war der UTC-Tag-Stand vorher; Gegenprüfung Notizen
+  17382/17383).

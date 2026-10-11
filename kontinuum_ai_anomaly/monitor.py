@@ -203,8 +203,9 @@ class AgentMonitor:
 
         Returns a dict with ``action``, ``surprise`` (0-1), ``anomaly`` (raw
         core flag — advisory, see the module docstring), ``threshold``,
-        ``is_novel`` (True the first time this action is seen) and
-        ``learning_state``.
+        ``is_novel`` (True the first time this action is seen),
+        ``learning_state`` and ``ts`` (the event's tz-aware UTC timestamp —
+        the time-pattern strategies of Stufe 2 judge from it).
 
         ``detail`` is accepted for caller ergonomics / logging symmetry; it does
         not change the learned token (the token granularity is the action).
@@ -264,6 +265,11 @@ class AgentMonitor:
             "threshold": round(float(snap.extra.get("anomaly_threshold", 0.0)), 4),
             "is_novel": is_novel,
             "learning_state": snap.learning_state,
+            # The event's timestamp (tz-aware, UTC after normalization):
+            # time-pattern strategies (zeitmuster, Stufe 2) judge windows,
+            # gaps and hour profiles from it. Inert for every strategy
+            # that ignores it.
+            "ts": ts,
         }
 
     # ------------------------------------------------------------------

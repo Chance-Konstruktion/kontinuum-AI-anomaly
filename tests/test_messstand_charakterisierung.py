@@ -142,6 +142,15 @@ def test_charakterisierung_des_messstands():
         "B2s Funkstille-Schwelle muss die Stille sehen"
     assert treffer("ungewohnte-uhrzeit", "B2"), \
         "B2s Stundenprofil muss die falsche Stunde sehen"
+    # Struktur-Sieg der Stufe 2: der Zeitmuster-Kandidat trägt die drei
+    # Zeitmuster-Zeilen JETZT SELBST (vorher die alleinige Niederlage der
+    # Kandidaten — die Tafel von Stufe 1 nannte sie, Stufe 2 zahlt sie).
+    assert treffer("schwall", "watch-zeit"), \
+        "Stufe 2: der Kandidat muss den Schwall selbst sehen"
+    assert treffer("funkstille", "watch-zeit"), \
+        "Stufe 2: der Kandidat muss die Stille selbst sehen"
+    assert treffer("ungewohnte-uhrzeit", "watch-zeit"), \
+        "Stufe 2: der Kandidat muss die falsche Stunde selbst sehen"
     # Struktur-Niederlage (bewusst in der Tafel und hier festgehalten):
     for name, _ in laeufer:
         assert not treffer("ungewohntes-ziel", name), \
@@ -161,7 +170,52 @@ def test_messstand_ende_zu_ende_liefert_alle_arten():
     for name, zahlen in tafel["fehlalarme_je_1000"].items():
         assert 0.0 <= zahlen["mittel"] < 100.0, (name, zahlen)
     # Die gepaarten Differenzen tragen Streuungsfelder:
-    for kandidat_name in ("watch-voll", "watch-ohne-kern"):
+    for kandidat_name in ("watch-voll", "watch-ohne-kern", "watch-zeit"):
         differenz = tafel["differenz_gegen_besten_gegner"][kandidat_name]
         assert set(differenz) == gefordert
         assert all("streuung" in z for z in differenz.values())
+
+
+def test_kern_pfad_erste_gemessene_flagge():
+    """Der Erstversuch der versiegelten Sonde (deepseek, Notiz 17387):
+    Tor 3 — der Kern-Nulltest — fiel durch GENAU EINE Flagge. Das ist
+    die erste je gemessene Beteiligung des Kern-Pfads, und diese Wache
+    pinnt sie als Niederlage der alten Behauptung «trägt 0,00».
+
+    Saat 535396 ist ein ENTHÜLLTER Erstversuch-Saatwert: der Satz ist
+    gefahren und verbraucht (Enthüllung in 17387), Entwicklung findet
+    auf ihm nicht statt — die Wache pinnt nur das Messurteil, sie sucht
+    nichts und tuned nichts. Auf den Entwicklungssaaten (< 1000)
+    bleibt die Differenz 0,00 — das pinnt der Test gleich mit.
+    """
+    # 1) Entwicklungssaat: Kern-Differenz bleibt 0,00
+    spur7 = spur_mit_vorfaellen(_profil("eifrig"), SAAT, tage=3)
+    blick7, marken7 = waechterblick(spur7)
+    k7 = kandidaten()
+    voll7 = next(k for k in k7 if k.name == "watch-voll")
+    ohne7 = next(k for k in k7 if k.name == "watch-ohne-kern")
+    voll7.neu(agent_id="w7"); ohne7.neu(agent_id="w7")
+    f_voll = [voll7.beobachte(e.ts, e.aktion, e.detail) for e in blick7]
+    f_ohne = [ohne7.beobachte(e.ts, e.aktion, e.detail) for e in blick7]
+    assert f_voll == f_ohne, \
+        "Entwicklungssaat 7: watch-voll ≡ watch-ohne-kern (Tafel 0,00)"
+
+    # 2) Enthüllte Erstversuch-Saat: GENAU EINE Abweichung, Index 1457
+    spur = spur_mit_vorfaellen(_profil("eifrig"), 535396, tage=3)
+    blick, marken = waechterblick(spur)
+    k = kandidaten()
+    voll = next(k for k in k if k.name == "watch-voll")
+    ohne = next(k for k in k if k.name == "watch-ohne-kern")
+    voll.neu(agent_id="w"); ohne.neu(agent_id="w")
+    flags_voll = [voll.beobachte(e.ts, e.aktion, e.detail) for e in blick]
+    flags_ohne = [ohne.beobachte(e.ts, e.aktion, e.detail) for e in blick]
+
+    abweichungen = [i for i in range(len(blick))
+                    if flags_voll[i] != flags_ohne[i]]
+    assert abweichungen == [1457], \
+        f"Erstversuch (Saat 535396, eifrig): genau Index 1457 — " \
+        f"gemessen: {abweichungen}"
+    assert marken[1457] == MARKE_NORMAL, \
+        "die eine Kern-Flagge trifft ein NORMALES Ereignis " \
+        "(Fehlalarm 39 vs 38)"
+    assert blick[1457].aktion == "editieren"

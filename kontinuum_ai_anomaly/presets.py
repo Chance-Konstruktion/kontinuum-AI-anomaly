@@ -25,6 +25,11 @@ from .scoring import (
     default_strategy,
     sequence_aware_strategy,
 )
+from .zeitmuster import (
+    FunkstilleStrategy,
+    SchwallStrategy,
+    StundenprofilStrategy,
+)
 
 PRESET_VERSION = 1
 
@@ -37,11 +42,17 @@ _PARAMS: Dict[str, List[str]] = {
         "early_warmup", "early_k_boost",
     ],
     "sequence": ["min_context", "min_prob"],
+    "schwall": ["fenster_s", "schwall_min", "schwall_faktor", "warmlauf"],
+    "funkstille": ["funkstille_s"],
+    "stundenprofil": ["stunden_warmlauf", "min_tage"],
 }
 _TYPES = {
     "novelty": NoveltyStrategy,
     "adaptive": AdaptiveThresholdStrategy,
     "sequence": SequenceStrategy,
+    "schwall": SchwallStrategy,
+    "funkstille": FunkstilleStrategy,
+    "stundenprofil": StundenprofilStrategy,
 }
 
 
@@ -112,11 +123,24 @@ def builtin_presets() -> Dict[str, ScoringStrategy]:
     * ``sequence_aware`` — adds first-order sequence anomalies on top.
     * ``novelty_only`` — the most conservative: flag only never-seen actions.
     * ``sensitive`` — sequence-aware with lowered bars for early, noisy streams.
+    * ``zeitmuster`` — novelty OR the three time patterns of Stufe 2
+      (burst window, radio-silence gap, off-hours profile) — usable
+      standalone; the benchmark's ``watch-zeit`` composes the patterns
+      on top of the full signal set instead.
     """
     return {
         "default": default_strategy(),
         "sequence_aware": sequence_aware_strategy(),
         "novelty_only": NoveltyStrategy(),
+        "zeitmuster": CompositeStrategy(
+            [
+                NoveltyStrategy(),
+                SchwallStrategy(),
+                FunkstilleStrategy(),
+                StundenprofilStrategy(),
+            ],
+            mode="or",
+        ),
         "sensitive": CompositeStrategy(
             [
                 NoveltyStrategy(),

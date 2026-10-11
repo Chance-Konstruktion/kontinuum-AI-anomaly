@@ -53,6 +53,12 @@ from .scoring import (
     sequence_aware_strategy,
 )
 from .watch import AnomalyWatch
+from .zeitmuster import (
+    FunkstilleStrategy,
+    SchwallStrategy,
+    StundenprofilStrategy,
+    zeitmuster_strategy,
+)
 
 _version_spec = importlib.util.find_spec(f"{__name__}._version")
 if _version_spec is not None:
@@ -72,6 +78,10 @@ __all__ = [
     "AdaptiveThresholdStrategy",
     "SequenceStrategy",
     "CompositeStrategy",
+    "SchwallStrategy",
+    "FunkstilleStrategy",
+    "StundenprofilStrategy",
+    "zeitmuster_strategy",
     "default_strategy",
     "sequence_aware_strategy",
     "normalize_learning_state",
