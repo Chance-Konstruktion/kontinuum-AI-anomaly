@@ -142,6 +142,15 @@ def test_charakterisierung_des_messstands():
         "B2s Funkstille-Schwelle muss die Stille sehen"
     assert treffer("ungewohnte-uhrzeit", "B2"), \
         "B2s Stundenprofil muss die falsche Stunde sehen"
+    # Struktur-Sieg der Stufe 2: der Zeitmuster-Kandidat trägt die drei
+    # Zeitmuster-Zeilen JETZT SELBST (vorher die alleinige Niederlage der
+    # Kandidaten — die Tafel von Stufe 1 nannte sie, Stufe 2 zahlt sie).
+    assert treffer("schwall", "watch-zeit"), \
+        "Stufe 2: der Kandidat muss den Schwall selbst sehen"
+    assert treffer("funkstille", "watch-zeit"), \
+        "Stufe 2: der Kandidat muss die Stille selbst sehen"
+    assert treffer("ungewohnte-uhrzeit", "watch-zeit"), \
+        "Stufe 2: der Kandidat muss die falsche Stunde selbst sehen"
     # Struktur-Niederlage (bewusst in der Tafel und hier festgehalten):
     for name, _ in laeufer:
         assert not treffer("ungewohntes-ziel", name), \
@@ -161,7 +170,7 @@ def test_messstand_ende_zu_ende_liefert_alle_arten():
     for name, zahlen in tafel["fehlalarme_je_1000"].items():
         assert 0.0 <= zahlen["mittel"] < 100.0, (name, zahlen)
     # Die gepaarten Differenzen tragen Streuungsfelder:
-    for kandidat_name in ("watch-voll", "watch-ohne-kern"):
+    for kandidat_name in ("watch-voll", "watch-ohne-kern", "watch-zeit"):
         differenz = tafel["differenz_gegen_besten_gegner"][kandidat_name]
         assert set(differenz) == gefordert
         assert all("streuung" in z for z in differenz.values())

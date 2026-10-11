@@ -43,6 +43,37 @@ und ``artefakte/messstand.json``.
   Zeilen stehen absichtlich in der Tafel; genau dafür ist der
   Messstand da.
 
+## Was die Stufe-2-Messung ausgesagt hat (die Zeitmuster-Zeilen)
+
+Der dritte Kandidat ``watch-zeit`` (watch-ohne-kern PLUS die drei
+Zeitmuster-Strategien aus ``kontinuum_ai_anomaly/zeitmuster`` — claudes
+drei Punkte aus der Notiz 15455) trägt die Zeitmuster-Zeilen jetzt
+selbst:
+
+* **Schwall, Funkstille und ungewohnte Uhrzeit: 100 % Treffer.** Der
+  Kandidat sieht jeden der drei Vorfälle — die gepaarte Differenz gegen
+  den besten Gegner springt von −1,00 (Stufe 1: die alleinige
+  Niederlage der Kandidaten, nur B2 zählte Fenster) auf +0,00. Die
+  Erkennung des Schwalls fällt nach durchschnittlich 9,3 Ereignissen —
+  exakt B2s Zahl, weil die Strategien dieselben benannten Schwellen
+  fahren (``max(10, 5×Median)`` je 60-s-Fenster nach 100 Fenstern
+  Warmlauf).
+* **Der Preis steht in der Tafel:** +0,8 Fehlalarme je 1000 normale
+  Ereignisse (2,0 statt 1,2) — die Zeitmuster schlagen gelegentlich
+  neben dem Vorfallfenster an. Ehrlich mitgerechnet, nicht weggemittelt.
+* **Die zwei benannten Blindstellen bleiben für alle offen:** langsame
+  Drift (kein Läufer zählt Frequenzen je AKTION über Versionen — die
+  nächste Strasse) und ungewohntes Ziel (kein Läufer sieht Details).
+  Zeilen bleiben in der Tafel, genau dafür ist der Messstand da.
+* **Der Kern-Pfad bleibt bei 0,00:** watch-voll und watch-ohne-kern
+  unterscheiden sich weiterhin in keinem Maß — auch die Stufe-2-Messung
+  bestätigt die Gegenprobe vom 04.10. und claudes Kern-0.7-Nachfahrung
+  (bitgleich). Der Hebel war die Zeit, nicht die Maschinerie.
+
+Die Sieben-Saaten-Tafel (7, 23, 42, 101, 255 — alle < 1000) steht in
+``artefakte/messstand_tafel.md``; die Charakterisierungstests pinnen
+die drei Struktur-Siege des ``watch-zeit`` und die Niederlagen.
+
 ## Regeln
 
 * Entwicklung nur auf Saaten < 1000. Der versiegelte Prüfsatz

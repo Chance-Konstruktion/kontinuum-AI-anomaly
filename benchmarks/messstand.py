@@ -302,7 +302,7 @@ def tafel_markdown(bericht: Dict[str, object]) -> str:
     tafel = bericht["tafel"]
     laeufer = meta["laeufer"]
     zeilen: List[str] = []
-    zeilen.append("# Messstand: der Wächter gegen die dummen Gegner (Stufe 1)")
+    zeilen.append("# Messstand: der Wächter gegen die dummen Gegner (Stufe 1 + 2)")
     zeilen.append("")
     zeilen.append(
         f"Saaten: {', '.join(str(s) for s in meta['saaten'])} "
@@ -388,7 +388,7 @@ def tafel_markdown(bericht: Dict[str, object]) -> str:
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m benchmarks.messstand",
-        description="Stufe 1 des Leit-Tickets: der Messstand gegen "
+        description="Stufe 1 + 2 des Leit-Tickets: der Messstand gegen "
                     "die dummen Gegner B0/B1/B2.",
     )
     parser.add_argument(

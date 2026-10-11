@@ -1,6 +1,7 @@
-"""Die Kandidaten des Messstands (Stufe 1, Punkt 3 des Tickets).
+"""Die Kandidaten des Messstands (Stufe 1, Punkt 3 des Tickets;
+Stufe 2: der dritte Kandidat).
 
-Zwei Kandidaten, wie das Ticket sie nennt:
+Drei Kandidaten:
 
 * **watch-voll** — ``AnomalyWatch`` mit der vollen Shipped-Signalmenge:
   ``sequence_aware_strategy()`` (Neuheit + adaptiver Schwellwert +
@@ -10,8 +11,13 @@ Zwei Kandidaten, wie das Ticket sie nennt:
 * **watch-ohne-kern** — die Abschaltprobe: dieselbe Komposition ohne
   ``AdaptiveThresholdStrategy``. Der gepaarte Unterschied der beiden
   Kandidaten ist genau der Beitrag des Kern-Pfads.
+* **watch-zeit** — der Stufe-2-Kandidat: watch-ohne-kern PLUS die drei
+  Zeitmuster-Strategien aus :mod:`kontinuum_ai_anomaly.zeitmuster`
+  (Schwall-Fenster, Funkstille-Loch, Stundenprofil — die Hebel, die
+  die Stufe-1-Tafel benannt hat, VOR dem Burst-Tor gezählt, denn das
+  Burst-Tor des Kerns frisst den Schwall, bevor die Engine ihn sieht).
 
-Beide sind reine Adapter: Sie füttern ``AnomalyWatch.observe(aktion,
+Alle sind reine Adapter: Sie füttern ``AnomalyWatch.observe(aktion,
 detail, ts=...)`` und melden ``is_anomaly`` als Flag. Festgelegte
 Randeentscheidungen, damit niemand im Dunkeln tappt:
 
@@ -35,6 +41,11 @@ from kontinuum_ai_anomaly.scoring import (
     NoveltyStrategy,
     SequenceStrategy,
     sequence_aware_strategy,
+)
+from kontinuum_ai_anomaly.zeitmuster import (
+    FunkstilleStrategy,
+    SchwallStrategy,
+    StundenprofilStrategy,
 )
 
 
@@ -70,13 +81,35 @@ class WatchKandidat:
 
 
 def kandidaten() -> "list[WatchKandidat]":
-    """Die zwei Kandidaten des Tickets, frisch und benannt."""
+    """Die drei Kandidaten, frisch und benannt.
+
+    Der dritte ist der Stufe-2-Kandidat (claudes drei Punkte, Notiz
+    15455): dieselbe volle Shipped-Signalmenge wie ``watch-voll`` PLUS
+    die drei Zeitmuster-Strategien — Rate-Fenster (Schwall),
+    Funkstille-Loch und Stundenprofil, alle VOR dem Burst-Tor gezählt
+    (Monitor-Schicht, Kern unberührt). Die gepaarte Differenz zu B2
+    sagt, ob der Wächter die Zeitmuster-Zeilen der Tafel jetzt selbst
+    trägt — und was er an Fehlalarmen dafür zahlt.
+    """
     return [
         WatchKandidat("watch-voll", sequence_aware_strategy),
         WatchKandidat(
             "watch-ohne-kern",
             lambda: CompositeStrategy(
                 [NoveltyStrategy(), SequenceStrategy()], mode="or",
+            ),
+        ),
+        WatchKandidat(
+            "watch-zeit",
+            lambda: CompositeStrategy(
+                [
+                    NoveltyStrategy(),
+                    SequenceStrategy(),
+                    SchwallStrategy(),
+                    FunkstilleStrategy(),
+                    StundenprofilStrategy(),
+                ],
+                mode="or",
             ),
         ),
     ]

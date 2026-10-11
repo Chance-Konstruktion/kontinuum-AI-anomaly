@@ -8,6 +8,25 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 
 ### Added
 
+- **Stufe 2: the three time-pattern strategies (`zeitmuster`).** The Stufe-1
+  bench proved the lever is the time patterns, not the core path — burst
+  (`schwall`), radio silence (`funkstille`) and off-hours work
+  (`ungewohnte-uhrzeit`) were caught only by the B2 baseline, because only B2
+  counts windows itself and the core's burst gate eats a burst before the
+  engine sees it. `SchwallStrategy` (rolling rate window with the B2
+  thresholds: `max(10, 5×median)` after a 100-window warm-up),
+  `FunkstilleStrategy` (>2 h gap whose midpoint lies in an already-seen hour
+  — the night pause stays the evening off) and `StundenprofilStrategy`
+  (never-seen local hour, only after two distinct days and 150 events) close
+  that gap in the monitor layer, core untouched. `AgentMonitor.observe()`
+  now exposes the event timestamp as `ts` (tz-aware UTC); strategies without
+  timestamps stay honestly inert. The bench's new third candidate
+  `watch-zeit` catches all three rows at B2 level (paired difference −1.00 →
+  +0.00), paying +0.8 false alarms per 1000 events for it; the two named
+  blind spots (slow drift, off-target details) stay open for everyone,
+  honestly in the table. Preset `zeitmuster` (novelty OR the three patterns)
+  round-trips through the preset machinery.
+
 - **`examples/zcode_watch.py`: a watcher for real coding agents.** Reads the
   tool calls that ZCode logs (read-only), runs one `AnomalyWatch` per model
   family through `MultiAgentWatch`, logs flagged steps as JSON lines and writes
