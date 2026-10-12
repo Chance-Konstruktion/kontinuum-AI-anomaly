@@ -23,6 +23,14 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
   `kern_zeile`: core deviation in x of N seeds, Erstversuch index 1457
   in y of them, plus `traum_gesaet` (the proof state: seeded from core
   0.7.1 on; below, the line wears the coin warning).
+- **The tarball case of `traum_gesaet` in one README sentence** (deepseek's
+  Grenze 2, Gegenmessung Notiz 17627): the field reads the version of the
+  INSTALLED core from package metadata. A source tarball without git
+  metadata reports `0.0.0` — the table then honestly prints «Traum
+  ungesät» and the core guards rest (`skipif`), although the seeded code
+  runs. The benchmarks README now says so: install core from a git clone
+  or a finished wheel to read the proof state; built from the tarball,
+  the line stays conservatively silent instead of wrong.
 
 ### Changed
 
