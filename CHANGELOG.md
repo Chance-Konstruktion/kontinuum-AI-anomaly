@@ -6,6 +6,32 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- **The dream's seed travels through the layers** (kontinuum-core 0.7.1,
+  MR !19): `AgentMonitor` and `AnomalyWatch` accept `rng_seed` (default
+  `TRAUM_SAAT_STANDARD = 0`, a named constant — never a hidden literal,
+  deepseek G4) and pass it into the engine config. Same seed →
+  bit-identical flags: the core line is no longer a coin toss on the
+  dream replay (deepseek, Notiz 17519: on the frozen stand 5/40 global
+  seeds flipped it). `None` sows from machine entropy. Cores < 0.7.1
+  ignore the key — their dream stays the unseeded global coin.
+- **The core line as a share in the table** (deepseek G3, Notiz 17519;
+  claude's decision 17474): `laufe_messstand` records the raw per-seed
+  counters (`je_saat.<saat>.kern.abweichungen_je_profil` — the indices
+  where watch-voll and watch-ohne-kern disagree) and the table carries
+  `kern_zeile`: core deviation in x of N seeds, Erstversuch index 1457
+  in y of them, plus `traum_gesaet` (the proof state: seeded from core
+  0.7.1 on; below, the line wears the coin warning).
+
+### Changed
+
+- **The core waches rest on unseeded cores** (`skipif` core < 0.7.1):
+  below the seeded dream the line is a coin (not pinnable — that is
+  what made `main` flake). The pinned verdict itself is unchanged: the
+  revealed, spent Erstversuch seed 535396, index 1457, one flag under
+  20 301 normal events.
+
 ### Fixed
 
 - **Sommerzeit in `zeitmuster` (review of !7).** `FunkstilleStrategy` and

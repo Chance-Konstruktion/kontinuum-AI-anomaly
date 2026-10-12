@@ -44,8 +44,17 @@ DEFAULT_STEP_SECONDS = 100
 # any of core's other tuning. (Hour 3 is the same point on the rising flank.)
 NEUTRAL_CIRCADIAN_HOUR = 13
 
+# The seed of core's dream replay (``rng_seed``, kontinuum-core 0.7.1 / MR !19,
+# Flug 2732): a named constant, never a hidden literal. 0 is core's own
+# default — every engine this monitor builds sows its dream from the same
+# stream, so a run is reproducible per seed. ``None`` sows from machine
+# entropy (not deterministic, honestly named). On cores older than 0.7.1 the
+# key travels in the config but is silently ignored — the coin stays a coin
+# there, and the characterisation waches rest (skipif) instead of pinning air.
+TRAUM_SAAT_STANDARD = 0
 
-def _build_engine() -> KontinuumEngine:
+
+def _build_engine(rng_seed: Optional[int] = TRAUM_SAAT_STANDARD) -> KontinuumEngine:
     """The engine for an agent action stream.
 
     kontinuum-core 0.7 adds a Lagebild (the joint state of all devices) and a
@@ -55,7 +64,18 @@ def _build_engine() -> KontinuumEngine:
     verdict rests on ``surprise``/``anomaly``, which neither touches: the
     Messstand table is bit-identical with and without them. Older cores do
     not know the switches and keep their single path.
+
+    ``rng_seed`` sows core's dream replay (0.7.1): same seed, same dream,
+    bit-identical flags. Cores that predate the config key ignore it —
+    their dream draws from the unseeded global random module (the coin
+    deepseek felled in Notiz 17519).
     """
+    try:
+        return KontinuumEngine(
+            claustrum=False, lagebild=False, config={"rng_seed": rng_seed},
+        )
+    except TypeError:  # config kwarg unbekannt (alte Kerne)
+        pass
     try:
         return KontinuumEngine(claustrum=False, lagebild=False)
     except TypeError:  # kontinuum-core < 0.7
@@ -94,6 +114,7 @@ class AgentMonitor:
         *,
         step_seconds: float = DEFAULT_STEP_SECONDS,
         circadian_hour: Optional[int] = NEUTRAL_CIRCADIAN_HOUR,
+        rng_seed: Optional[int] = TRAUM_SAAT_STANDARD,
     ):
         self.persist_path = persist_path
         self.agent_id = agent_id
@@ -101,12 +122,16 @@ class AgentMonitor:
         # restores core's own wall-clock behaviour. See
         # :meth:`_pin_circadian_phase`.
         self.circadian_hour = circadian_hour
+        # The dream's seed (see :data:`TRAUM_SAAT_STANDARD`): ``None`` sows
+        # from machine entropy, an integer pins the stream. Travels into
+        # core's engine config; cores < 0.7.1 ignore it.
+        self.rng_seed = rng_seed
         # Spacing on the virtual clock. Callers replaying genuinely
         # high-frequency streams can raise it so consecutive events aren't
         # silently burst-filtered (SPEC.md §5.5). Clamped to the burst-safe
         # default minimum so a too-small value can't reintroduce silent drops.
         self.step_seconds = max(float(step_seconds), DEFAULT_STEP_SECONDS)
-        self.engine = _build_engine()
+        self.engine = _build_engine(rng_seed)
         self._registered: set[str] = set()
         self._state_on: Dict[str, bool] = {}
         self._seen_actions: set[str] = set()

@@ -36,6 +36,7 @@ from datetime import datetime
 from typing import Optional
 
 from kontinuum_ai_anomaly import AnomalyWatch
+from kontinuum_ai_anomaly.monitor import TRAUM_SAAT_STANDARD
 from kontinuum_ai_anomaly.scoring import (
     CompositeStrategy,
     NoveltyStrategy,
@@ -59,12 +60,22 @@ class WatchKandidat:
         self._strategie_bau = strategie
         self._watch: Optional[AnomalyWatch] = None
 
-    def neu(self, agent_id: str) -> None:
-        """Frische Instanz für die nächste Spur."""
+    def neu(
+        self, agent_id: str,
+        rng_seed: Optional[int] = TRAUM_SAAT_STANDARD,
+    ) -> None:
+        """Frische Instanz für die nächste Spur.
+
+        ``rng_seed`` sät den Traum des Kerns (benannte Konstante
+        :data:`~kontinuum_ai_anomaly.monitor.TRAUM_SAAT_STANDARD`,
+        Standard 0 — deterministisch, deepseek G4 / Notiz 17519: nie ein
+        verstecktes Literal); ``None`` sät aus der Maschine.
+        """
         self._watch = AnomalyWatch(
             agent_id=agent_id,
             strategy=self._strategie_bau(),
             track_recurrence=False,
+            rng_seed=rng_seed,
         )
 
     def beobachte(

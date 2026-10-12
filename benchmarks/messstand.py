@@ -21,6 +21,13 @@ Die Maße, wie das Ticket sie verlangt:
   Treffern der beste = höchste Quote, bei Fehlalarmen der beste =
   niedrigste Rate); gemeldet als Mittelwert ± Streuung über die
   Saaten.
+* **Kern-Anteil** — je Saat die Indizes, an denen watch-voll und
+  watch-ohne-kern auseinandergehen (Rohzähler
+  ``je_saat.<saat>.kern.abweichungen_je_profil``); die Tafel weist
+  sie als Anteil aus («Abweichung in x von N Saaten», deepseek G3 /
+  Notiz 17519) und nennt den Beweiszustand des Traums: gesät ab
+  kontinuum-core 0.7.1 (MR !19) — davor war die Zeile eine Münze am
+  globalen Zufall.
 
 Ehrlichkeit als Bau-Regel: Die Tafel enthält die Niederlagen mit —
 eine Zeile, die der Kern verliert, bleibt in der Tafel und in den
@@ -44,6 +51,19 @@ from .vorfaelle import VORFALLSARTEN, spur_mit_vorfaellen
 
 LAUEFER_GEGNER = ("B0", "B1", "B2")
 GEGNER_KLASSEN = {"B0": B0, "B1": B1, "B2": B2}
+
+# Das Kern-Paar des Leit-Tickets: die gepaarte Differenz seiner beiden
+# Mitglieder ist genau der Beitrag des Kern-Pfads (Tor 3 des
+# Erstversuchs, deepseek Notiz 17387). Die Namen sind die aus
+# :func:`benchmarks.kandidaten.kandidaten`.
+KERN_PAAR = ("watch-voll", "watch-ohne-kern")
+
+# Der Index des normalen ``editieren``-Ereignisses, das die versiegelte
+# Sonde (deepseek, Notiz 17387) auf der Erstversuch-Saat 535396 mass —
+# die bislang einzige je gemessene Kern-Pfad-Beteiligung (1 unter
+# 20 301 normalen). Die Anteils-Zeile zählt, in wie vielen Saaten er
+# wiederkommt.
+ERSTVERSUCH_INDEX = 1457
 
 
 # ---------------------------------------------------------------------------
@@ -96,6 +116,18 @@ def laufe_spur(
                     break
             zeile[name] = treffer_pos
         ergebnis["fenster"][f"{art}/{nr}"] = zeile
+
+    # Die Kern-Abweichungen (G3, deepseek Notiz 17519): Indizes, an
+    # denen watch-voll und watch-ohne-kern auseinandergehen — der
+    # Rohzähler, aus dem die Anteils-Zeile der Tafel nachgerechnet
+    # wird. Nur wenn das Paar wirklich läuft (im Messstand immer);
+    # sonst bleibt der Schlüssel weg, statt eine leere Liste zu
+    # behaupten.
+    if KERN_PAAR[0] in flags and KERN_PAAR[1] in flags:
+        ergebnis["kern_abweichungen"] = [
+            i for i in range(len(blick))
+            if flags[KERN_PAAR[0]][i] != flags[KERN_PAAR[1]][i]
+        ]
     return ergebnis
 
 
@@ -126,6 +158,7 @@ def laufe_messstand(
         }
         fehlalarme: Dict[str, int] = {name: 0 for name in laeufer_namen}
         normale_gesamt = 0
+        kern_je_profil: Dict[str, List[int]] = {}
 
         for profil in profile_liste:
             spur = spur_mit_vorfaellen(profil, saat, tage=tage)
@@ -137,6 +170,8 @@ def laufe_messstand(
                 kandidat.neu(agent_id=profil.name)
                 laeufer.append((kandidat.name, kandidat))
             spur_ergebnis = laufe_spur(spur, laeufer)
+            kern_je_profil[profil.name] = spur_ergebnis.get(
+                "kern_abweichungen", [])
 
             normale_gesamt += spur_ergebnis["normale_ereignisse"]
             for name in laeufer_namen:
@@ -161,6 +196,7 @@ def laufe_messstand(
             "fehlalarme": fehlalarme,
             "normale_ereignisse": normale_gesamt,
             "fehlalarme_je_1000": fehlalarme_je_1000,
+            "kern": {"abweichungen_je_profil": kern_je_profil},
         }
 
     tafel = _tafel_aggregate(je_saat, saaten, laeufer_namen, kandidaten)
@@ -188,6 +224,15 @@ def _version(paket: str) -> str:
         return "unbekannt"
 
 
+def _version_tuple(paket: str) -> Tuple[int, ...]:
+    """Die ersten drei Zahlen der Paketversion als vergleichbares
+    Tuple; bei unlesbarer Version leer (ehrlich: nichts behaupten)."""
+    try:
+        return tuple(int(x) for x in _version(paket).split(".")[:3])
+    except ValueError:
+        return ()
+
+
 def _mit_streuung(werte: List[float]) -> Dict[str, float]:
     if not werte:
         return {"mittel": 0.0, "streuung": 0.0, "min": 0.0, "max": 0.0}
@@ -197,6 +242,17 @@ def _mit_streuung(werte: List[float]) -> Dict[str, float]:
         "min": min(werte),
         "max": max(werte),
     }
+
+
+def _kern_indizes(je_saat: Dict[str, dict], saat: int) -> List[int]:
+    """Alle Kern-Abweichungs-Indizes einer Saat, über alle Profile
+    hinweg (flach) — die Zählbasis der Anteils-Zeile."""
+    kern = je_saat.get(str(saat), {}).get("kern", {})
+    return [
+        index
+        for indizes in kern.get("abweichungen_je_profil", {}).values()
+        for index in indizes
+    ]
 
 
 def _tafel_aggregate(
@@ -254,6 +310,25 @@ def _tafel_aggregate(
                 satz["fehlalarme_je_1000"][name] - bester_fehl
             )
 
+    # Die Kern-Zeile als Anteil (claudes Entscheidung 17474; deepseek
+    # G3, Notiz 17519): nicht «eine Münze», sondern «Abweichung in x von
+    # N Saaten» — aus den Rohzählern je Saat nachrechenbar, nicht aus
+    # der Tafel geglaubt. ``traum_gesaet`` nennt den Beweiszustand: erst
+    # ab kontinuum-core 0.7.1 (MR !19, Flug 2732) läuft der Dream-Replay
+    # auf eigenem, gesätem Strom — davor kippte die Zeile am globalen
+    # Zufall (deepseek: 5/40 Vorstände; super-z: 2/40).
+    kern_zeile: Dict[str, object] = {
+        "saaten": len(saaten),
+        "saaten_mit_abweichung": sum(
+            1 for saat in saaten if _kern_indizes(je_saat, saat)
+        ),
+        "erstversuch_index_in": sum(
+            1 for saat in saaten
+            if ERSTVERSUCH_INDEX in _kern_indizes(je_saat, saat)
+        ),
+        "traum_gesaet": _version_tuple("kontinuum-core") >= (0, 7, 1),
+    }
+
     tafel: Dict[str, object] = {
         "treffer_je_art": {
             art: {
@@ -283,6 +358,7 @@ def _tafel_aggregate(
             name: _mit_streuung(differenz_fehl[name])
             for name in kandidat_namen
         },
+        "kern_zeile": kern_zeile,
     }
     return tafel
 
@@ -372,6 +448,23 @@ def tafel_markdown(bericht: Dict[str, object]) -> str:
         f"{tafel['differenz_fehlalarme'][name]['streuung']:.1f}"
         for name in kandidaten
     ) + " |")
+    zeilen.append("")
+    zeilen.append("## Die Kern-Zeile als Anteil (watch-voll ≠ watch-ohne-kern)")
+    zeilen.append("")
+    kern = tafel["kern_zeile"]
+    if kern["traum_gesaet"]:
+        traum_zustand = "Traum gesät (rng_seed — deterministisch)"
+    else:
+        traum_zustand = (
+            "Traum UNGESÄT (core < 0.7.1): die Zeile ist eine Münze am "
+            "globalen Zufall — die Zahl trägt keinen Beweis"
+        )
+    zeilen.append(
+        f"Kern-Abweichung in {kern['saaten_mit_abweichung']} von "
+        f"{kern['saaten']} Saaten · Erstversuch-Index {ERSTVERSUCH_INDEX} "
+        f"in {kern['erstversuch_index_in']} davon · {traum_zustand}. "
+        "Rohzähler je Saat: je_saat.<saat>.kern.abweichungen_je_profil."
+    )
     zeilen.append("")
     zeilen.append(
         "Alle Zahlen aus synthetischen Spuren (Saaten siehe oben); "
