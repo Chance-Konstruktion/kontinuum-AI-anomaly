@@ -83,6 +83,14 @@ selbst:
   behauptet. Die Wache pinnt es
   (``test_kern_pfad_erste_gemessene_flagge``); Tor 3 des Messvertrags
   fiel genau daran (Urteil INVALID, die Zeitmuster-Tore bestanden).
+  Seit der Saat (core 0.7.1, MR !19 — der Traum-Replay läuft auf
+  eigenem, gesätem Strom, Standard ``rng_seed=0``) ist die Zeile keine
+  Münze mehr: Erstversuch-Saat 535396 bleibt [1457] unter allen
+  gemessenen globalen Vorständen (G2, deepseek 17519: davor kippten
+  5/40), die Entwicklungssaaten bleiben 0,00 — und die Tafel weist die
+  Kern-Zeile jetzt als ANTEIL aus («Abweichung in x von N Saaten» samt
+  Erstversuch-Index-Zähler, Rohzähler je Saat — G3) und nennt den
+  Beweiszustand des Traums (``traum_gesaet``).
 
 Die Sieben-Saaten-Tafel (7, 23, 42, 101, 255 — alle < 1000) steht in
 ``artefakte/messstand_tafel.md``; die Charakterisierungstests pinnen

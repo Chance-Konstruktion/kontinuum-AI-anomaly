@@ -13,6 +13,7 @@ deterministic, and strictly below the sealed-seed line (saaten < 1000).
 """
 from __future__ import annotations
 
+import random
 from datetime import datetime, timezone, timedelta
 
 import pytest
@@ -32,6 +33,14 @@ from benchmarks.spur import (
 from benchmarks.vorfaelle import spur_mit_vorfaellen
 
 SAAT = 7  # Entwicklung nur auf Saaten < 1000
+
+# Die Saaten der Kern-Wachen — benannt, keine versteckten Literale
+# (deepseek G4, Notiz 17519). ERSTVERSUCH_SAAT: der enthüllte und
+# verbrauchte Erstversuch-Saatwert der versiegelten Sonde (Notiz 17387).
+ERSTVERSUCH_SAAT = 535396
+# KERN_WACHE_TRAUM_SAAT: die Saat des Traum-Replays, die die Wache fährt
+# (kontinuum-core 0.7.1 Standard, MR !19 / Flug 2732 — rng_seed).
+KERN_WACHE_TRAUM_SAAT = 0
 
 
 def _profil(name: str) -> AgentProfil:
@@ -181,10 +190,17 @@ def _core_version():
     return tuple(int(x) for x in version("kontinuum-core").split(".")[:3])
 
 
-# Die eine Kern-Flagge ist mit dem Kern ab 0.6.3 gemessen (Sonde 17387);
-# das alte Matrix-Bein 0.6.0 hat einen anderen Kern-Pfad und flaggt dort nicht.
-@pytest.mark.skipif(_core_version() < (0, 6, 3),
-                    reason="Kern-Flagge gilt fuer kontinuum-core >= 0.6.3")
+# Die Kern-Wachen ruhen erst ab dem GESÄTEN Traum (kontinuum-core 0.7.1,
+# MR !19 / Flug 2732): davor stammt der Dream-Replay-Zufall aus dem
+# UNGESÄTEN globalen random-Modul — die Zeile ist eine Münze (deepseek,
+# Notiz 17519: 5/40 kippen; super-z: 2/40), nicht pinbar. Mit der Saat
+# ist der Kern-Pfad deterministisch und die Wachen gelten.
+# Die eine Kern-Flagge selbst ist mit dem Kern ab 0.6.3 gemessen (Sonde
+# 17387); das alte Matrix-Bein 0.6.0 hat einen anderen Kern-Pfad und
+# flaggt dort nicht.
+@pytest.mark.skipif(_core_version() < (0, 7, 1),
+                    reason="Traum ungesaet (core < 0.7.1): die Kern-Zeile "
+                            "ist eine Muenze, nicht pinbar")
 def test_kern_pfad_erste_gemessene_flagge():
     """Der Erstversuch der versiegelten Sonde (deepseek, Notiz 17387):
     Tor 3 — der Kern-Nulltest — fiel durch GENAU EINE Flagge. Das ist
@@ -196,6 +212,11 @@ def test_kern_pfad_erste_gemessene_flagge():
     auf ihm nicht statt — die Wache pinnt nur das Messurteil, sie sucht
     nichts und tuned nichts. Auf den Entwicklungssaaten (< 1000)
     bleibt die Differenz 0,00 — das pinnt der Test gleich mit.
+
+    Die Wache nennt ihre Saat in benannten Konstanten und pinnt genau
+    sie (deepseek G4, Notiz 17519): ERSTVERSUCH_SAAT ist die Spur-Saat
+    des Erstversuchs, KERN_WACHE_TRAUM_SAAT die Saat des Traum-Replays
+    (core 0.7.1 Standard: 0) — keine versteckten Literale.
     """
     # 1) Entwicklungssaat: Kern-Differenz bleibt 0,00
     spur7 = spur_mit_vorfaellen(_profil("eifrig"), SAAT, tage=3)
@@ -203,19 +224,21 @@ def test_kern_pfad_erste_gemessene_flagge():
     k7 = kandidaten()
     voll7 = next(k for k in k7 if k.name == "watch-voll")
     ohne7 = next(k for k in k7 if k.name == "watch-ohne-kern")
-    voll7.neu(agent_id="w7"); ohne7.neu(agent_id="w7")
+    voll7.neu(agent_id="w7", rng_seed=KERN_WACHE_TRAUM_SAAT)
+    ohne7.neu(agent_id="w7", rng_seed=KERN_WACHE_TRAUM_SAAT)
     f_voll = [voll7.beobachte(e.ts, e.aktion, e.detail) for e in blick7]
     f_ohne = [ohne7.beobachte(e.ts, e.aktion, e.detail) for e in blick7]
     assert f_voll == f_ohne, \
         "Entwicklungssaat 7: watch-voll ≡ watch-ohne-kern (Tafel 0,00)"
 
     # 2) Enthüllte Erstversuch-Saat: GENAU EINE Abweichung, Index 1457
-    spur = spur_mit_vorfaellen(_profil("eifrig"), 535396, tage=3)
+    spur = spur_mit_vorfaellen(_profil("eifrig"), ERSTVERSUCH_SAAT, tage=3)
     blick, marken = waechterblick(spur)
     k = kandidaten()
     voll = next(k for k in k if k.name == "watch-voll")
     ohne = next(k for k in k if k.name == "watch-ohne-kern")
-    voll.neu(agent_id="w"); ohne.neu(agent_id="w")
+    voll.neu(agent_id="w", rng_seed=KERN_WACHE_TRAUM_SAAT)
+    ohne.neu(agent_id="w", rng_seed=KERN_WACHE_TRAUM_SAAT)
     flags_voll = [voll.beobachte(e.ts, e.aktion, e.detail) for e in blick]
     flags_ohne = [ohne.beobachte(e.ts, e.aktion, e.detail) for e in blick]
 
@@ -228,3 +251,90 @@ def test_kern_pfad_erste_gemessene_flagge():
         "die eine Kern-Flagge trifft ein NORMALES Ereignis " \
         "(Fehlalarm 39 vs 38)"
     assert blick[1457].aktion == "editieren"
+
+
+# ---------------------------------------------------------------------------
+# Der gesäte Traum (core 0.7.1, MR !19) — die Kern-Zeile als Messgröße
+# ---------------------------------------------------------------------------
+
+
+def _kern_lauf(saat: int, traum_saat: int, globaler_vorstand=None):
+    """Ein Lauf des Kern-Paars (watch-voll vs watch-ohne-kern) über die
+    Spur ``saat`` mit Traumsaat ``traum_saat``; optional mit gesetztem
+    globalem random-Vorstand (die G2-Gegenprobe)."""
+    if globaler_vorstand is not None:
+        random.seed(globaler_vorstand)
+    spur = spur_mit_vorfaellen(_profil("eifrig"), saat, tage=3)
+    blick, _ = waechterblick(spur)
+    k = kandidaten()
+    voll = next(x for x in k if x.name == "watch-voll")
+    ohne = next(x for x in k if x.name == "watch-ohne-kern")
+    voll.neu(agent_id="k", rng_seed=traum_saat)
+    ohne.neu(agent_id="k", rng_seed=traum_saat)
+    f_voll = [voll.beobachte(e.ts, e.aktion, e.detail) for e in blick]
+    f_ohne = [ohne.beobachte(e.ts, e.aktion, e.detail) for e in blick]
+    return f_voll, f_ohne
+
+
+@pytest.mark.skipif(_core_version() < (0, 7, 1),
+                    reason="Traum ungesaet (core < 0.7.1): ohne Saat keine "
+                            "Strom-Gleichheit pinbar")
+def test_traum_saat_reicht_bis_zur_flagge():
+    """Die Traumsaat reist durch die Schichten (Kandidat → Watch → Monitor
+    → Engine) und zwei Läufe mit derselben Saat sind bitgleich — die
+    Flag-Folge ist kein Zufallsprodukt des Prozesses mehr."""
+    f1, g1 = _kern_lauf(SAAT, 5)
+    f2, g2 = _kern_lauf(SAAT, 5)
+    assert f1 == f2, "gleiche Traumsaat muss bitgleiche watch-voll-Flaggen liefern"
+    assert g1 == g2, "gleiche Traumsaat muss bitgleiche watch-ohne-Flaggen liefern"
+
+
+@pytest.mark.skipif(_core_version() < (0, 7, 1),
+                    reason="Traum ungesaet (core < 0.7.1): die Muenze kippt "
+                            "ohne Saat, kein Widerlegungs-Beweis pinbar")
+def test_kern_pfad_ist_keine_muenze_mehr():
+    """Die G2-Gegenprobe aus deepseek 17519, hier als Wache: globale
+    random-Vorstände (seed 0 und seed 42) VOR dem Lauf dürfen die
+    Kern-Zeile nicht mehr kippen — Flag-Folgen bitgleich, die Abweichung
+    bleibt genau [1457]. Vor core 0.7.1 kippten 5/40 Vorstände."""
+    v0, o0 = _kern_lauf(ERSTVERSUCH_SAAT, KERN_WACHE_TRAUM_SAAT,
+                        globaler_vorstand=0)
+    v42, o42 = _kern_lauf(ERSTVERSUCH_SAAT, KERN_WACHE_TRAUM_SAAT,
+                          globaler_vorstand=42)
+    assert v0 == v42, "globaler Vorstand darf watch-voll nicht mehr bewegen"
+    assert o0 == o42, "globaler Vorstand darf watch-ohne-kern nicht mehr bewegen"
+    abweichungen = [i for i in range(len(v0)) if v0[i] != o0[i]]
+    assert abweichungen == [1457], \
+        f"Kern-Zeile unter Vorständen: genau Index 1457 — gemessen: {abweichungen}"
+
+
+@pytest.mark.skipif(_core_version() < (0, 7, 1),
+                    reason="Traum ungesaet (core < 0.7.1): die Anteils-Zeile "
+                            "waere eine Muenz-Zaehlung")
+def test_messstand_kern_zeile_als_anteil():
+    """G3 (deepseek 17519 / claudes Entscheidung 17474): der Messstand wiegt
+    die Kern-Zeile als ANTEIL über Saaten («1457 in x von N Saaten»), nicht
+    als eine Münze. Die Rohzähler stehen je Saat in je_saat unter
+    ``kern.abweichungen_je_profil`` — die Anteils-Zeile ist daraus
+    nachrechenbar, nicht aus der Tafel geglaubt."""
+    # Erstversuch-Saat (enthüllt, verbraucht — nur das Messurteil):
+    bericht = laufe_messstand([ERSTVERSUCH_SAAT], tage=3,
+                              profile_liste=[_profil("eifrig")])
+    kern = bericht["je_saat"][str(ERSTVERSUCH_SAAT)]["kern"]
+    assert kern["abweichungen_je_profil"]["eifrig"] == [1457], \
+        "Erstversuch-Saat: genau Index 1457 im Rohzähler"
+    zeile = bericht["tafel"]["kern_zeile"]
+    assert zeile["saaten"] == 1
+    assert zeile["saaten_mit_abweichung"] == 1, \
+        "1 von 1 Saaten trägt die Kern-Abweichung"
+    assert zeile["erstversuch_index_in"] == 1, \
+        "«1457 in 1 von 1 Saaten» — die Anteils-Zeile"
+    # Entwicklungssaat: der Anteil bleibt 0 — die Tafel-Zeile 0,00 bleibt
+    bericht7 = laufe_messstand([SAAT], tage=3,
+                               profile_liste=[_profil("eifrig")])
+    kern7 = bericht7["je_saat"][str(SAAT)]["kern"]
+    assert kern7["abweichungen_je_profil"]["eifrig"] == [], \
+        "Entwicklungssaat 7: Kern-Differenz 0,00 im Rohzähler"
+    zeile7 = bericht7["tafel"]["kern_zeile"]
+    assert zeile7["saaten_mit_abweichung"] == 0
+    assert zeile7["erstversuch_index_in"] == 0

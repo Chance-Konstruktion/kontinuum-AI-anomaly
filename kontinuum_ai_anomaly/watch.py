@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional
 from ._timeutil import as_utc_or_now
 from .alerting import AlertRouter
 from .history import AnomalyHistory, AnomalyRecord
-from .monitor import AgentMonitor
+from .monitor import AgentMonitor, TRAUM_SAAT_STANDARD
 from .recurrence import RecurrenceDetector, RecurrenceFinding
 from .scoring import AnomalyScore, AnomalyScorer, ScoringStrategy
 
@@ -41,6 +41,11 @@ class AnomalyWatch:
         recurrence_path: Optional JSON path to load/persist the detector's
             windowed counts across runs.
         track_recurrence: Set False to disable recurrence tracking entirely.
+        rng_seed: Seed of core's dream replay (``TRAUM_SAAT_STANDARD``, 0 —
+            kontinuum-core 0.7.1, MR !19): same seed, bit-identical flags.
+            ``None`` sows from machine entropy (not deterministic, honestly
+            named). Cores < 0.7.1 ignore the key — their dream stays the
+            unseeded global coin (deepseek, Notiz 17519).
     """
 
     def __init__(
@@ -54,8 +59,11 @@ class AnomalyWatch:
         recurrence: Optional[RecurrenceDetector] = None,
         recurrence_path: Optional[str] = None,
         track_recurrence: bool = True,
+        rng_seed: Optional[int] = TRAUM_SAAT_STANDARD,
     ):
-        self.monitor = AgentMonitor(persist_path=brain_path, agent_id=agent_id)
+        self.monitor = AgentMonitor(
+            persist_path=brain_path, agent_id=agent_id, rng_seed=rng_seed,
+        )
         self.scorer = AnomalyScorer(strategy=strategy)
         self.history = AnomalyHistory(persist_path=history_path)
         self.router = router
