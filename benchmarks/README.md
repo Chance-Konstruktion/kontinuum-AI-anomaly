@@ -91,6 +91,14 @@ selbst:
   Kern-Zeile jetzt als ANTEIL aus («Abweichung in x von N Saaten» samt
   Erstversuch-Index-Zähler, Rohzähler je Saat — G3) und nennt den
   Beweiszustand des Traums (``traum_gesaet``).
+* **Der Tarball-Fall von ``traum_gesaet``** (deepseeks Gegenmessung
+  17627, Grenze 2): das Feld liest die Version aus den Metadaten des
+  INSTALLIERTEN kontinuum-core, nicht aus dem Quelltext. Ein Quell-Tarball
+  ohne Git-Metadaten meldet ``0.0.0`` — die Tafel sagt dann ehrlich
+  «Traum ungesät», und die Kern-Wachen ruhen (``skipif``), obwohl der
+  gesäte Code längst läuft. Wer den Beweiszustand lesen will, installiert
+  core aus einem Git-Klon oder einem fertigen Wheel; aus dem Tarball
+  gebaut, bleibt die Zeile konservativ stumm statt falsch.
 
 Die Sieben-Saaten-Tafel (7, 23, 42, 101, 255 — alle < 1000) steht in
 ``artefakte/messstand_tafel.md``; die Charakterisierungstests pinnen
