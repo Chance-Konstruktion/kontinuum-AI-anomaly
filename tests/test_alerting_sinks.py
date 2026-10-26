@@ -6,7 +6,7 @@ rather than raise). It had no test coverage at all; this file covers the
 constructor guard, all three payload templates, and both delivery outcomes,
 without touching the network.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -55,6 +55,27 @@ class _FakeResponse:
 def test_unknown_template_is_rejected():
     with pytest.raises(ValueError, match="template must be"):
         WebhookSink("https://example.invalid/hook", template="teams")
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "file:///tmp/payload.json",
+        "ftp://example.invalid/hook",
+        "https:///missing-host",
+        "not-a-url",
+        "https://user:secret@example.invalid/hook",
+    ],
+)
+def test_webhook_rejects_invalid_or_credential_bearing_urls(url):
+    with pytest.raises(ValueError, match="url must be|credentials"):
+        WebhookSink(url)
+
+
+@pytest.mark.parametrize("timeout", [0, -1, float("inf"), float("nan"), "bad"])
+def test_webhook_rejects_non_positive_or_non_finite_timeout(timeout):
+    with pytest.raises(ValueError, match="timeout must be"):
+        WebhookSink("https://example.invalid/hook", timeout=timeout)
 
 
 @pytest.mark.parametrize("template", ["generic", "slack", "discord"])
@@ -164,7 +185,33 @@ def test_a_failing_webhook_does_not_stop_other_sinks(monkeypatch):
     report = router.route(_record(), now=AWARE)
     assert report["sinks"]["webhook"] is False
     assert report["sinks"]["callback"] is True
+    assert report["delivered"] is True
     assert len(delivered) == 1
+
+
+def test_all_sink_failures_are_reported_and_do_not_arm_cooldown():
+    class ToggleSink:
+        name = "toggle"
+
+        def __init__(self):
+            self.succeeds = False
+            self.calls = 0
+
+        def deliver(self, rec):
+            self.calls += 1
+            return self.succeeds
+
+    sink = ToggleSink()
+    router = AlertRouter([sink], cooldown_seconds=60)
+    failed = router.route(_record(), now=AWARE)
+    assert failed["delivered"] is False
+    assert failed["reason"] == "delivery_failed"
+    assert failed["sinks"]["toggle"] is False
+
+    sink.succeeds = True
+    succeeded = router.route(_record(), now=AWARE + timedelta(seconds=1))
+    assert succeeded["delivered"] is True
+    assert sink.calls == 2
 
 
 # ----------------------------------------------------------------------
@@ -202,3 +249,35 @@ def test_snooze_expires_on_its_own():
 
 def test_log_sink_delivers():
     assert LogSink().deliver(_record()) is True
+
+
+
+def test_same_sink_at_multiple_levels_delivers_only_once_per_alert():
+    seen = []
+    sink = CallbackSink(lambda rec: seen.append(rec.action))
+    router = AlertRouter()
+    router.add_sink(sink, min_level="info")
+    router.add_sink(sink, min_level="critical")
+
+    report = router.route(_record(score=0.95), now=AWARE)
+
+    assert report["delivered"] is True
+    assert report["sinks"]["callback"] is True
+    assert seen == ["escalate"]
+
+
+def test_distinct_sinks_with_the_same_name_keep_separate_results():
+    class NamedSink:
+        name = "shared"
+
+        def __init__(self, outcome):
+            self.outcome = outcome
+
+        def deliver(self, rec):
+            return self.outcome
+
+    router = AlertRouter([NamedSink(True), NamedSink(False)])
+    report = router.route(_record(score=0.95), now=AWARE)
+
+    assert report["delivered"] is True
+    assert report["sinks"] == {"shared": True, "shared#2": False}

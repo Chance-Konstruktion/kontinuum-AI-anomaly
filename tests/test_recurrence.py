@@ -207,3 +207,37 @@ def test_route_recurrence_through_alert_router():
     routed = w.route_recurrence(now=T0 + DAY + timedelta(hours=1))
     assert any(f.action == "deploy" for f in routed)
     assert "deploy" in seen
+
+
+
+def test_event_older_than_the_retained_ring_is_ignored():
+    det = _detector(max_buckets=3)
+    det.record("current", ts=T0 + 10 * DAY)
+    latest = det._latest_bucket
+
+    # A stale replay may arrive after the ring advanced. It must not create a
+    # bucket that the ring can no longer retain.
+    det.record("very-old", ts=T0)
+
+    assert det._latest_bucket == latest
+    assert "very-old" not in det._counts
+    assert len(det._counts["current"]) == 1
+
+
+def test_recurrence_rejects_invalid_bucket_configuration():
+    import pytest
+
+    with pytest.raises(ValueError, match="bucket_seconds"):
+        RecurrenceDetector(bucket_seconds=0)
+    with pytest.raises(ValueError, match="max_buckets"):
+        RecurrenceDetector(max_buckets=0)
+    with pytest.raises(ValueError, match="new_within_days"):
+        RecurrenceDetector(new_within_days=-1)
+    with pytest.raises(ValueError, match="established_min_count"):
+        RecurrenceDetector(established_min_count=0)
+    with pytest.raises(ValueError, match="baseline_min_buckets"):
+        RecurrenceDetector(baseline_min_buckets=0)
+    with pytest.raises(ValueError, match="spike_factor"):
+        RecurrenceDetector(spike_factor=0)
+    with pytest.raises(ValueError, match="spike_k"):
+        RecurrenceDetector(spike_k=-1)

@@ -88,6 +88,12 @@ class AnomalyHistory:
         max_records: Optional[int] = 10_000,
         autosave: bool = True,
     ):
+        if max_records is not None and (
+            isinstance(max_records, bool)
+            or not isinstance(max_records, int)
+            or max_records < 0
+        ):
+            raise ValueError("max_records must be a non-negative integer or None")
         self.persist_path = persist_path
         self.max_records = max_records
         self.autosave = autosave
@@ -96,9 +102,14 @@ class AnomalyHistory:
             self._load(persist_path)
 
     def record(self, rec: AnomalyRecord) -> AnomalyRecord:
-        self.records.append(rec)
-        if self.max_records is not None and len(self.records) > self.max_records:
-            self.records = self.records[-self.max_records :]
+        if self.max_records == 0:
+            # A zero-cap history is a valid no-retention mode; records[-0:]
+            # would otherwise keep every record because -0 == 0.
+            self.records.clear()
+        else:
+            self.records.append(rec)
+            if self.max_records is not None and len(self.records) > self.max_records:
+                self.records = self.records[-self.max_records :]
         if self.persist_path and self.autosave:
             self.save()
         return rec
@@ -201,3 +212,9 @@ class AnomalyHistory:
         with open(path, "r", encoding="utf-8") as fh:
             payload = json.load(fh)
         self.records = [AnomalyRecord(**r) for r in payload.get("records", [])]
+        # A persisted ledger may have been written with a larger cap. Apply
+        # this instance's policy at load time, not only after the next record.
+        if self.max_records == 0:
+            self.records = []
+        elif self.max_records is not None and len(self.records) > self.max_records:
+            self.records = self.records[-self.max_records :]

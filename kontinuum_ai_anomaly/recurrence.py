@@ -30,6 +30,7 @@ report on their own cadence via :meth:`AnomalyWatch.check_recurrence`.
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from statistics import median
@@ -106,12 +107,28 @@ class RecurrenceDetector:
     ):
         self.bucket_seconds = float(bucket_seconds)
         self.max_buckets = int(max_buckets)
+        if not math.isfinite(self.bucket_seconds) or self.bucket_seconds <= 0:
+            raise ValueError("bucket_seconds must be a positive finite number")
+        if self.max_buckets < 1:
+            raise ValueError("max_buckets must be at least 1")
         self.new_within_days = float(new_within_days)
         self.established_min_count = int(established_min_count)
         self.spike_factor = float(spike_factor)
         self.spike_k = float(spike_k)
         self.baseline_min_buckets = int(baseline_min_buckets)
         self.silence_min_median = float(silence_min_median)
+        if not math.isfinite(self.new_within_days) or self.new_within_days < 0:
+            raise ValueError("new_within_days must be non-negative and finite")
+        if self.established_min_count < 1:
+            raise ValueError("established_min_count must be at least 1")
+        if self.baseline_min_buckets < 1:
+            raise ValueError("baseline_min_buckets must be at least 1")
+        if not math.isfinite(self.spike_factor) or self.spike_factor <= 0:
+            raise ValueError("spike_factor must be positive and finite")
+        if not math.isfinite(self.spike_k) or self.spike_k < 0:
+            raise ValueError("spike_k must be non-negative and finite")
+        if not math.isfinite(self.silence_min_median) or self.silence_min_median < 0:
+            raise ValueError("silence_min_median must be non-negative and finite")
 
         # action -> {bucket_index: count}
         self._counts: Dict[str, Dict[int, int]] = {}
@@ -136,6 +153,13 @@ class RecurrenceDetector:
         """
         when = _as_utc(ts) if ts is not None else _now()
         b = self._bucket(when)
+        # Ignore late events outside the retained ring. Without this boundary,
+        # an out-of-order replay can append buckets older than the ring and
+        # leave stale per-action entries until another future window arrives.
+        if self._latest_bucket is not None:
+            oldest = self._latest_bucket - self.max_buckets + 1
+            if b < oldest:
+                return
         buckets = self._counts.setdefault(action, {})
         buckets[b] = buckets.get(b, 0) + 1
         if action not in self._first_seen or when < self._first_seen[action]:

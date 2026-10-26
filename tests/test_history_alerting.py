@@ -87,6 +87,8 @@ def test_callback_sink_swallows_handler_error():
     report = router.route(AnomalyRecord.from_score(_score()))
     # Routing did not raise; the sink reported failure.
     assert report["sinks"]["callback"] is False
+    assert report["delivered"] is False
+    assert report["reason"] == "delivery_failed"
 
 
 def test_router_rate_limiting():
@@ -142,3 +144,36 @@ def test_dashboard_filter_and_metric_controls():
 def test_dashboard_empty_window():
     html = render_dashboard(AnomalyHistory(), days=7)
     assert "No anomalies" in html
+
+
+
+def test_history_zero_cap_discards_records(tmp_path):
+    path = str(tmp_path / "empty-history.json")
+    h = AnomalyHistory(persist_path=path, max_records=0)
+    h.record(AnomalyRecord.from_score(_score("ignored")))
+    assert h.records == []
+    h2 = AnomalyHistory(persist_path=path, max_records=0)
+    assert h2.records == []
+
+
+def test_history_rejects_negative_record_cap():
+    import pytest
+
+    with pytest.raises(ValueError, match="max_records must be a non-negative integer"):
+        AnomalyHistory(max_records=-1)
+
+
+def test_history_applies_record_cap_when_loading_existing_ledger(tmp_path):
+    path = str(tmp_path / "existing-history.json")
+    original = AnomalyHistory(persist_path=path, autosave=False)
+    for i in range(5):
+        original.record(AnomalyRecord.from_score(_score(f"a{i}")))
+    original.save()
+
+    limited = AnomalyHistory(persist_path=path, max_records=2)
+    assert [record.action for record in limited.records] == ["a3", "a4"]
+
+@pytest.mark.parametrize("cap", [-1, 1.5, True])
+def test_history_rejects_invalid_record_caps(cap):
+    with pytest.raises(ValueError, match="max_records must be a non-negative integer"):
+        AnomalyHistory(max_records=cap)

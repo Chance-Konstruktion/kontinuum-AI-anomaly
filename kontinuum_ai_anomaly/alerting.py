@@ -12,9 +12,11 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import urllib.error
 import urllib.request
 from datetime import datetime, timedelta
+from urllib.parse import urlsplit
 from typing import Any, Callable, Dict, List, Optional, Protocol, Tuple
 
 from ._timeutil import as_utc, now_utc
@@ -126,9 +128,24 @@ class WebhookSink:
     def __init__(self, url: str, template: str = "generic", timeout: float = 5.0):
         if template not in ("generic", "slack", "discord"):
             raise ValueError("template must be 'generic', 'slack' or 'discord'")
+        try:
+            parsed = urlsplit(url)
+            parsed.port  # Force validation of malformed/out-of-range ports here.
+        except (TypeError, ValueError):
+            raise ValueError("url must be an absolute http(s) URL with a host") from None
+        if parsed.scheme.lower() not in ("http", "https") or not parsed.hostname:
+            raise ValueError("url must be an absolute http(s) URL with a host")
+        if parsed.username is not None or parsed.password is not None:
+            raise ValueError("webhook URL must not embed credentials")
+        try:
+            timeout_value = float(timeout)
+        except (TypeError, ValueError):
+            raise ValueError("timeout must be a positive finite number") from None
+        if not math.isfinite(timeout_value) or timeout_value <= 0:
+            raise ValueError("timeout must be a positive finite number")
         self.url = url
         self.template = template
-        self.timeout = timeout
+        self.timeout = timeout_value
 
     def _payload(self, rec: AnomalyRecord) -> Dict[str, Any]:
         if self.template == "slack":
@@ -154,7 +171,9 @@ class WebhookSink:
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 return 200 <= resp.status < 300
-        except (urllib.error.URLError, OSError) as err:
+        except (urllib.error.URLError, OSError, ValueError) as err:
+            # Invalid endpoint/request construction is a failed delivery too;
+            # it must not escape the sink contract and block other sinks.
             logger.warning("WebhookSink delivery failed: %s", err)
             return False
 
@@ -255,15 +274,36 @@ class AlertRouter:
             return {"delivered": False, "reason": "rate_limited", "level": level, "sinks": {}}
         rank = _LEVEL_INDEX[level]
         results: Dict[str, bool] = {}
+        seen_sinks: set[int] = set()
         for sink, min_level in self._entries:
-            if rank < _LEVEL_INDEX[min_level]:
+            if rank < _LEVEL_INDEX[min_level] or id(sink) in seen_sinks:
                 continue
-            results[sink.name] = sink.deliver(rec)
+            # Registering one sink at multiple minimum levels expresses
+            # multiple eligibility rules, not a request to deliver duplicates.
+            seen_sinks.add(id(sink))
+            key = sink.name
+            if key in results:
+                suffix = 2
+                while f"{key}#{suffix}" in results:
+                    suffix += 1
+                key = f"{key}#{suffix}"
+            results[key] = bool(sink.deliver(rec))
         if not results:
             # Nothing went out, so nothing may start the cooldown clock. Arming
             # it here used to swallow the *next* alert for this action: a
             # below-threshold info event would rate-limit a genuine critical one
             # arriving inside the window, even though no sink had ever fired.
             return {"delivered": False, "reason": "below_sink_levels", "level": level, "sinks": {}}
+        delivered = any(results.values())
+        if not delivered:
+            # Attempting delivery is not the same as delivering an alert. Do
+            # not start the cooldown on an all-failed fan-out, or the next
+            # (possibly more severe) event can be suppressed without notice.
+            return {
+                "delivered": False,
+                "reason": "delivery_failed",
+                "level": level,
+                "sinks": results,
+            }
         self._last_sent[rec.action] = now
         return {"delivered": True, "level": level, "sinks": results}
