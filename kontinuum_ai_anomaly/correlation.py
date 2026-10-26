@@ -16,7 +16,10 @@ This module adds that layer without touching core or the single-agent pipeline:
 """
 from __future__ import annotations
 
+import hashlib
+import math
 import os
+import re
 from bisect import insort
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -50,7 +53,19 @@ class CrossStreamCorrelator:
     """
 
     def __init__(self, window_seconds: float = 60.0, max_events: int = 10_000):
-        self.window_seconds = window_seconds
+        try:
+            window = float(window_seconds)
+        except (TypeError, ValueError):
+            raise ValueError("window_seconds must be a non-negative finite number") from None
+        if not math.isfinite(window) or window < 0:
+            raise ValueError("window_seconds must be a non-negative finite number")
+        if (
+            isinstance(max_events, bool)
+            or not isinstance(max_events, int)
+            or max_events < 0
+        ):
+            raise ValueError("max_events must be a non-negative integer")
+        self.window_seconds = window
         self.max_events = max_events
         # Kept sorted by (ts, seq) so window lookups stay cheap. The monotonic
         # ``seq`` tie-breaks equal timestamps so the tuples stay orderable
@@ -73,7 +88,11 @@ class CrossStreamCorrelator:
         ev = CorrelatedEvent(agent_id=agent_id, action=action, score=score, ts=ts)
         insort(self._events, (ts, self._seq, ev))
         self._seq += 1
-        if len(self._events) > self.max_events:
+        if self.max_events == 0:
+            # A zero cap means correlation is disabled; [-0:] would retain all
+            # events because Python treats -0 as 0.
+            self._events.clear()
+        elif len(self._events) > self.max_events:
             self._events = self._events[-self.max_events :]
         return ev
 
@@ -103,6 +122,8 @@ class CrossStreamCorrelator:
         previous one; only clusters touching at least ``min_agents`` distinct
         agents are returned — those are the cross-stream incidents worth a look.
         """
+        if isinstance(min_agents, bool) or not isinstance(min_agents, int) or min_agents < 1:
+            raise ValueError("min_agents must be a positive integer")
         if not self._events:
             return []
         clusters: List[List[CorrelatedEvent]] = []
@@ -173,7 +194,26 @@ class MultiAgentWatch:
         if not base:
             return None
         os.makedirs(base, exist_ok=True)
-        return os.path.join(base, f"{agent_id}.json")
+        identifier = str(agent_id)
+        if (
+            identifier not in {".", ".."}
+            and re.fullmatch(r"[A-Za-z0-9_.-]+", identifier)
+        ):
+            filename_id = identifier
+        else:
+            # Agent IDs may come from an external event source. Never turn them
+            # directly into a path: separators/traversal could escape brain_dir
+            # or history_dir. Preserve a readable stem but bind it with a hash
+            # so distinct unsafe IDs cannot collapse onto the same filename.
+            stem = re.sub(r"[^A-Za-z0-9]+", "_", identifier).strip("_") or "agent"
+            digest = hashlib.sha256(identifier.encode("utf-8")).hexdigest()[:16]
+            filename_id = f"{stem}_{digest}"
+
+        root = os.path.realpath(os.path.abspath(base))
+        path = os.path.realpath(os.path.join(root, f"{filename_id}.json"))
+        if os.path.commonpath((root, path)) != root:
+            raise ValueError("agent ID resolved outside the persistence directory")
+        return path
 
     def watch_for(self, agent_id: str) -> AnomalyWatch:
         w = self.watches.get(agent_id)

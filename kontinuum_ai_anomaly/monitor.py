@@ -344,6 +344,8 @@ class AgentMonitor:
                 "clock": self._clock.isoformat(),
             },
         }
+        parent = os.path.dirname(os.path.abspath(self.persist_path))
+        os.makedirs(parent, exist_ok=True)
         tmp = f"{self.persist_path}.tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(payload, fh)

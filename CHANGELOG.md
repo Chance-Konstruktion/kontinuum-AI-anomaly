@@ -42,6 +42,13 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 
 ### Fixed
 
+- **Sandbox multi-agent persistence paths.** Agent IDs are no longer embedded
+  unvalidated in filesystem paths; unsafe IDs receive stable hashed filenames,
+  while ordinary IDs retain the existing filename format.
+- **Bound cross-stream correlation retention correctly.** `max_events=0` now
+  retains no records instead of triggering the `[-0:]` slice trap; invalid
+  event caps/windows and non-positive cluster sizes fail at construction or
+  query boundaries with clear errors.
 - **Correct delivery reporting and cooldowns.** `AlertRouter` no longer
   reports success when every sink failed, and a failed fan-out does not arm
   the cooldown. Cooldown is tracked per action, severity and successful sink,
@@ -63,9 +70,9 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
   to disk immediately, and negative, fractional or boolean caps are rejected.
   Persistence creates missing parent directories and no-retention mode avoids
   rewriting an empty ledger on every event.
-- **Recurrence persistence creates parent directories.** A first save to a new
-  history or recurrence path no longer fails merely because its parent folder
-  does not yet exist.
+- **Persistence creates parent directories consistently.** Saving the
+  agent brain, anomaly history, or recurrence ledger to a new subdirectory no
+  longer fails just because the parent path does not yet exist.
 - **Recurrence ring rejects stale out-of-window events.** Late events outside
   the retained bucket ring no longer leave stale action buckets behind. Invalid
   window/scoring parameters now fail at construction instead of reaching
