@@ -241,3 +241,23 @@ def test_recurrence_rejects_invalid_bucket_configuration():
         RecurrenceDetector(spike_factor=0)
     with pytest.raises(ValueError, match="spike_k"):
         RecurrenceDetector(spike_k=-1)
+
+
+def test_watch_recurrence_save_creates_missing_parent_directory(tmp_path):
+    path = tmp_path / "new-subdir" / "recurrence.json"
+    watch = AnomalyWatch(
+        agent_id="p",
+        recurrence_path=str(path),
+        recurrence=_detector(),
+    )
+    watch.observe("deploy", ts=T0)
+    watch.save()
+    assert path.exists()
+
+    restored = AnomalyWatch(
+        agent_id="p",
+        recurrence_path=str(path),
+        recurrence=_detector(),
+    )
+    assert restored.recurrence is not None
+    assert restored.check_recurrence(now=T0) == []

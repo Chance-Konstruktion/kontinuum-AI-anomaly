@@ -65,6 +65,7 @@ def test_unknown_template_is_rejected():
         "https:///missing-host",
         "not-a-url",
         "https://user:secret@example.invalid/hook",
+        "https://example.invalid:99999/hook",
     ],
 )
 def test_webhook_rejects_invalid_or_credential_bearing_urls(url):
@@ -104,6 +105,9 @@ def test_generic_payload_carries_the_record_fields():
     assert payload["type"] == "anomaly"
     assert payload["agent_id"] == "agent-7"
     assert payload["action"] == "escalate"
+    assert payload["threshold"] == 0.5
+    assert payload["strategy"] == "test"
+    assert payload["detail"] is None
     assert payload["is_novel"] is True
     assert payload["reasons"] == ["never-seen action"]
     assert payload["ts"] == AWARE.isoformat()
@@ -281,3 +285,23 @@ def test_distinct_sinks_with_the_same_name_keep_separate_results():
 
     assert report["delivered"] is True
     assert report["sinks"] == {"shared": True, "shared#2": False}
+
+
+
+def test_more_severe_alert_is_not_suppressed_by_lower_level_cooldown():
+    delivered = []
+    router = AlertRouter(
+        [(CallbackSink(lambda rec: delivered.append(rec.score)), "info")],
+        cooldown_seconds=60,
+    )
+    warning = _record(action="poll", score=0.5, is_novel=False)
+    critical = _record(action="poll", score=0.95, is_novel=False)
+
+    first = router.route(warning, now=AWARE)
+    second = router.route(critical, now=AWARE + timedelta(seconds=1))
+
+    assert first["level"] == "warning"
+    assert first["delivered"] is True
+    assert second["level"] == "critical"
+    assert second["delivered"] is True
+    assert delivered == [0.5, 0.95]

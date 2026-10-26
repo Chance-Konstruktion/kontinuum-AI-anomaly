@@ -42,6 +42,32 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 
 ### Fixed
 
+- **Correct delivery reporting and cooldowns.** `AlertRouter` no longer
+  reports success when every sink failed, and a failed fan-out does not arm
+  the cooldown. Cooldown is keyed by action and severity, so a recent warning
+  cannot suppress a new critical escalation. A sink registered at multiple
+  levels is delivered at most once per event; distinct sinks that share a name
+  keep separate result keys.
+- **Complete generic webhook records.** The generic JSON payload now includes
+  threshold, strategy and optional detail alongside score, surprise, reasons
+  and event time, matching the documented record contract.
+- **Webhook configuration fails early and safely.** Require an absolute
+  HTTP(S) URL with a host, reject embedded credentials and invalid ports,
+  and require a positive finite timeout. Request construction errors are
+  reported as failed delivery instead of escaping the sink contract.
+- **History retention limits apply consistently.** A cap of zero now means
+  retaining no records (rather than exploiting Python's `[-0:]` slice), the
+  configured cap is applied when an existing ledger is loaded and written back
+  to disk immediately, and negative, fractional or boolean caps are rejected.
+  Persistence creates missing parent directories and no-retention mode avoids
+  rewriting an empty ledger on every event.
+- **Recurrence persistence creates parent directories.** A first save to a new
+  history or recurrence path no longer fails merely because its parent folder
+  does not yet exist.
+- **Recurrence ring rejects stale out-of-window events.** Late events outside
+  the retained bucket ring no longer leave stale action buckets behind. Invalid
+  window/scoring parameters now fail at construction instead of reaching
+  division-by-zero or nonsensical thresholds.
 - **Sommerzeit in `zeitmuster` (review of !7).** `FunkstilleStrategy` and
   `StundenprofilStrategy` formed their hours from the UTC labels of the
   (monitor-normalized) timestamps. A constant UTC offset maps hour profiles

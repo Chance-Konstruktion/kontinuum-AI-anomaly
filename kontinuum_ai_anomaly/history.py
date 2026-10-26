@@ -106,6 +106,7 @@ class AnomalyHistory:
             # A zero-cap history is a valid no-retention mode; records[-0:]
             # would otherwise keep every record because -0 == 0.
             self.records.clear()
+            return rec
         else:
             self.records.append(rec)
             if self.max_records is not None and len(self.records) > self.max_records:
@@ -203,6 +204,8 @@ class AnomalyHistory:
         if not self.persist_path:
             return
         payload = {"version": 1, "records": [asdict(r) for r in self.records]}
+        parent = os.path.dirname(os.path.abspath(self.persist_path))
+        os.makedirs(parent, exist_ok=True)
         tmp = f"{self.persist_path}.tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(payload, fh)
@@ -212,9 +215,14 @@ class AnomalyHistory:
         with open(path, "r", encoding="utf-8") as fh:
             payload = json.load(fh)
         self.records = [AnomalyRecord(**r) for r in payload.get("records", [])]
+        original_count = len(self.records)
         # A persisted ledger may have been written with a larger cap. Apply
         # this instance's policy at load time, not only after the next record.
         if self.max_records == 0:
             self.records = []
         elif self.max_records is not None and len(self.records) > self.max_records:
             self.records = self.records[-self.max_records :]
+        if self.autosave and len(self.records) != original_count:
+            # Enforce retention on disk immediately too; otherwise records
+            # evicted from RAM would remain in the persistence file indefinitely.
+            self.save()

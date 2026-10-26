@@ -1,6 +1,8 @@
 """Anomaly history, persistence, alert routing and the dashboard."""
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from kontinuum_ai_anomaly import (
     AlertRouter,
     AnomalyHistory,
@@ -172,8 +174,20 @@ def test_history_applies_record_cap_when_loading_existing_ledger(tmp_path):
 
     limited = AnomalyHistory(persist_path=path, max_records=2)
     assert [record.action for record in limited.records] == ["a3", "a4"]
+    persisted = AnomalyHistory(persist_path=path)
+    assert [record.action for record in persisted.records] == ["a3", "a4"]
 
 @pytest.mark.parametrize("cap", [-1, 1.5, True])
 def test_history_rejects_invalid_record_caps(cap):
     with pytest.raises(ValueError, match="max_records must be a non-negative integer"):
         AnomalyHistory(max_records=cap)
+
+
+
+def test_history_save_creates_missing_parent_directory(tmp_path):
+    path = tmp_path / "not-created-yet" / "history.json"
+    h = AnomalyHistory(persist_path=str(path))
+    h.record(AnomalyRecord.from_score(_score("new-folder")))
+    assert path.exists()
+    restored = AnomalyHistory(persist_path=str(path))
+    assert [record.action for record in restored.records] == ["new-folder"]

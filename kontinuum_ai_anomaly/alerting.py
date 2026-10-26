@@ -130,7 +130,8 @@ class WebhookSink:
             raise ValueError("template must be 'generic', 'slack' or 'discord'")
         try:
             parsed = urlsplit(url)
-            parsed.port  # Force validation of malformed/out-of-range ports here.
+            if parsed.port is not None and not 1 <= parsed.port <= 65535:
+                raise ValueError("port is outside the valid range")
         except (TypeError, ValueError):
             raise ValueError("url must be an absolute http(s) URL with a host") from None
         if parsed.scheme.lower() not in ("http", "https") or not parsed.hostname:
@@ -158,9 +159,12 @@ class WebhookSink:
             "action": rec.action,
             "score": rec.score,
             "surprise": rec.surprise,
+            "threshold": rec.threshold,
             "is_novel": rec.is_novel,
             "reasons": rec.reasons,
+            "strategy": rec.strategy,
             "ts": rec.ts,
+            "detail": rec.detail,
         }
 
     def deliver(self, rec: AnomalyRecord) -> bool:
@@ -188,8 +192,9 @@ class AlertRouter:
             for anomalies at or above ``min_level`` (one of :data:`LEVELS`), so a
             chatty ``LogSink`` and a page-someone ``WebhookSink`` can share a
             router.
-        cooldown_seconds: Minimum gap between alerts for the *same* action; a
-            repeat inside the window is suppressed. ``0`` disables rate-limiting.
+        cooldown_seconds: Minimum gap between alerts for the same action at the
+            same escalation level. A more severe escalation can still get through
+            during a lower-level cooldown. Zero disables rate-limiting.
         level_thresholds: Score cut-points passed to :func:`escalation_level`.
     """
 
@@ -206,7 +211,9 @@ class AlertRouter:
         self._entries: List[Tuple[AlertSink, str]] = []
         self.cooldown_seconds = cooldown_seconds
         self.level_thresholds = level_thresholds or DEFAULT_LEVEL_THRESHOLDS
-        self._last_sent: Dict[str, datetime] = {}
+        # Cool down repeats of the same action at the same severity level.
+        # A warning must not suppress a critical escalation seconds later.
+        self._last_sent: Dict[Tuple[str, str], datetime] = {}
         self._snoozed: Dict[str, datetime] = {}
         self.suppressed = 0
         for entry in sinks or []:
@@ -254,10 +261,10 @@ class AlertRouter:
             return False
         return True
 
-    def _rate_limited(self, action: str, now: datetime) -> bool:
+    def _rate_limited(self, action: str, level: str, now: datetime) -> bool:
         if self.cooldown_seconds <= 0:
             return False
-        last = self._last_sent.get(action)
+        last = self._last_sent.get((action, level))
         return last is not None and (now - last) < timedelta(
             seconds=self.cooldown_seconds
         )
@@ -269,7 +276,7 @@ class AlertRouter:
         if self._is_snoozed(rec.action, now):
             self.suppressed += 1
             return {"delivered": False, "reason": "snoozed", "level": level, "sinks": {}}
-        if self._rate_limited(rec.action, now):
+        if self._rate_limited(rec.action, level, now):
             self.suppressed += 1
             return {"delivered": False, "reason": "rate_limited", "level": level, "sinks": {}}
         rank = _LEVEL_INDEX[level]
@@ -305,5 +312,5 @@ class AlertRouter:
                 "level": level,
                 "sinks": results,
             }
-        self._last_sent[rec.action] = now
+        self._last_sent[(rec.action, level)] = now
         return {"delivered": True, "level": level, "sinks": results}
