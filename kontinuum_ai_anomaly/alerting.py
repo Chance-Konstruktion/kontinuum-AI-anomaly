@@ -192,9 +192,9 @@ class AlertRouter:
             for anomalies at or above ``min_level`` (one of :data:`LEVELS`), so a
             chatty ``LogSink`` and a page-someone ``WebhookSink`` can share a
             router.
-        cooldown_seconds: Minimum gap between alerts for the same action at the
-            same escalation level. A more severe escalation can still get through
-            during a lower-level cooldown. Zero disables rate-limiting.
+        cooldown_seconds: Minimum gap per action, severity and successful sink.
+            Failed deliveries remain retryable; a more severe escalation is not
+            suppressed by a lower-level cooldown. Zero disables rate-limiting.
         level_thresholds: Score cut-points passed to :func:`escalation_level`.
     """
 
@@ -211,9 +211,10 @@ class AlertRouter:
         self._entries: List[Tuple[AlertSink, str]] = []
         self.cooldown_seconds = cooldown_seconds
         self.level_thresholds = level_thresholds or DEFAULT_LEVEL_THRESHOLDS
-        # Cool down repeats of the same action at the same severity level.
-        # A warning must not suppress a critical escalation seconds later.
-        self._last_sent: Dict[Tuple[str, str], datetime] = {}
+        # Cool down successful repeats per action, severity and sink. A warning
+        # must not suppress a critical escalation, and a failed pager must remain
+        # retryable even if a log sink succeeded for the same event.
+        self._last_sent: Dict[Tuple[str, str, int], datetime] = {}
         self._snoozed: Dict[str, datetime] = {}
         self.suppressed = 0
         for entry in sinks or []:
@@ -261,10 +262,12 @@ class AlertRouter:
             return False
         return True
 
-    def _rate_limited(self, action: str, level: str, now: datetime) -> bool:
+    def _rate_limited(
+        self, action: str, level: str, sink: AlertSink, now: datetime
+    ) -> bool:
         if self.cooldown_seconds <= 0:
             return False
-        last = self._last_sent.get((action, level))
+        last = self._last_sent.get((action, level, id(sink)))
         return last is not None and (now - last) < timedelta(
             seconds=self.cooldown_seconds
         )
@@ -276,12 +279,11 @@ class AlertRouter:
         if self._is_snoozed(rec.action, now):
             self.suppressed += 1
             return {"delivered": False, "reason": "snoozed", "level": level, "sinks": {}}
-        if self._rate_limited(rec.action, level, now):
-            self.suppressed += 1
-            return {"delivered": False, "reason": "rate_limited", "level": level, "sinks": {}}
         rank = _LEVEL_INDEX[level]
         results: Dict[str, bool] = {}
         seen_sinks: set[int] = set()
+        eligible = 0
+        rate_limited = 0
         for sink, min_level in self._entries:
             if rank < _LEVEL_INDEX[min_level] or id(sink) in seen_sinks:
                 continue
@@ -294,23 +296,39 @@ class AlertRouter:
                 while f"{key}#{suffix}" in results:
                     suffix += 1
                 key = f"{key}#{suffix}"
-            results[key] = bool(sink.deliver(rec))
+            eligible += 1
+            if self._rate_limited(rec.action, level, sink, now):
+                results[key] = False
+                rate_limited += 1
+                continue
+            try:
+                delivered_to_sink = bool(sink.deliver(rec))
+            except Exception:
+                # A plugin-provided sink must not prevent other sinks from
+                # receiving a safety-relevant alert.
+                logger.exception("Alert sink %s raised during delivery", sink.name)
+                delivered_to_sink = False
+            results[key] = delivered_to_sink
+            if delivered_to_sink:
+                self._last_sent[(rec.action, level, id(sink))] = now
         if not results:
-            # Nothing went out, so nothing may start the cooldown clock. Arming
-            # it here used to swallow the *next* alert for this action: a
-            # below-threshold info event would rate-limit a genuine critical one
-            # arriving inside the window, even though no sink had ever fired.
             return {"delivered": False, "reason": "below_sink_levels", "level": level, "sinks": {}}
         delivered = any(results.values())
         if not delivered:
-            # Attempting delivery is not the same as delivering an alert. Do
-            # not start the cooldown on an all-failed fan-out, or the next
-            # (possibly more severe) event can be suppressed without notice.
+            if rate_limited == eligible:
+                self.suppressed += 1
+                return {
+                    "delivered": False,
+                    "reason": "rate_limited",
+                    "level": level,
+                    "sinks": results,
+                }
+            # Delivery failures do not arm a cooldown; only successfully
+            # delivered (action, level, sink) tuples are rate-limited.
             return {
                 "delivered": False,
                 "reason": "delivery_failed",
                 "level": level,
                 "sinks": results,
             }
-        self._last_sent[(rec.action, level)] = now
         return {"delivered": True, "level": level, "sinks": results}

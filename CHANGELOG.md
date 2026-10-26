@@ -44,10 +44,12 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 
 - **Correct delivery reporting and cooldowns.** `AlertRouter` no longer
   reports success when every sink failed, and a failed fan-out does not arm
-  the cooldown. Cooldown is keyed by action and severity, so a recent warning
-  cannot suppress a new critical escalation. A sink registered at multiple
-  levels is delivered at most once per event; distinct sinks that share a name
-  keep separate result keys.
+  the cooldown. Cooldown is tracked per action, severity and successful sink,
+  so a warning cannot suppress a critical escalation and a failed pager is
+  retried even if another sink succeeded. Raising custom sinks are isolated so
+  they cannot stop subsequent sinks. A sink registered at multiple levels is
+  delivered at most once per event; distinct sinks that share a name keep
+  separate result keys.
 - **Complete generic webhook records.** The generic JSON payload now includes
   threshold, strategy and optional detail alongside score, surprise, reasons
   and event time, matching the documented record contract.

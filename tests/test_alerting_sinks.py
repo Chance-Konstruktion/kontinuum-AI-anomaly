@@ -305,3 +305,58 @@ def test_more_severe_alert_is_not_suppressed_by_lower_level_cooldown():
     assert second["level"] == "critical"
     assert second["delivered"] is True
     assert delivered == [0.5, 0.95]
+
+
+
+def test_failed_sink_is_retried_even_when_another_sink_succeeded():
+    log_calls = []
+
+    class PagerSink:
+        name = "pager"
+
+        def __init__(self):
+            self.succeeds = False
+            self.calls = 0
+
+        def deliver(self, rec):
+            self.calls += 1
+            return self.succeeds
+
+    pager = PagerSink()
+    router = AlertRouter(
+        [(CallbackSink(log_calls.append), "info"), (pager, "critical")],
+        cooldown_seconds=60,
+    )
+    rec = _record(action="deploy", score=0.95)
+
+    first = router.route(rec, now=AWARE)
+    assert first["delivered"] is True
+    assert first["sinks"]["callback"] is True
+    assert first["sinks"]["pager"] is False
+
+    # The log sink is within cooldown, but the failed pager must be retried.
+    pager.succeeds = True
+    second = router.route(rec, now=AWARE + timedelta(seconds=1))
+    assert second["delivered"] is True
+    assert second["sinks"]["callback"] is False
+    assert second["sinks"]["pager"] is True
+    assert len(log_calls) == 1
+    assert pager.calls == 2
+
+
+def test_raising_custom_sink_does_not_block_following_sinks():
+    class ExplodingSink:
+        name = "exploding"
+
+        def deliver(self, rec):
+            raise RuntimeError("sink bug")
+
+    received = []
+    router = AlertRouter([ExplodingSink(), CallbackSink(received.append)])
+
+    report = router.route(_record(), now=AWARE)
+
+    assert report["delivered"] is True
+    assert report["sinks"]["exploding"] is False
+    assert report["sinks"]["callback"] is True
+    assert len(received) == 1
