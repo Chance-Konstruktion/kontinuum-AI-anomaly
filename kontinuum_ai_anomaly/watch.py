@@ -179,6 +179,8 @@ class AnomalyWatch:
         self.monitor.save()
         self.history.save()
         if self.recurrence is not None and self.recurrence_path:
+            parent = os.path.dirname(os.path.abspath(self.recurrence_path))
+            os.makedirs(parent, exist_ok=True)
             tmp = f"{self.recurrence_path}.tmp"
             with open(tmp, "w", encoding="utf-8") as fh:
                 json.dump(self.recurrence.to_dict(), fh)

@@ -42,6 +42,41 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 
 ### Fixed
 
+- **Sandbox multi-agent persistence paths.** Agent IDs are no longer embedded
+  unvalidated in filesystem paths; unsafe IDs receive stable hashed filenames,
+  while ordinary IDs retain the existing filename format.
+- **Bound cross-stream correlation retention correctly.** `max_events=0` now
+  retains no records instead of triggering the `[-0:]` slice trap; invalid
+  event caps/windows and non-positive cluster sizes fail at construction or
+  query boundaries with clear errors.
+- **Correct delivery reporting and cooldowns.** `AlertRouter` no longer
+  reports success when every sink failed, and a failed fan-out does not arm
+  the cooldown. Cooldown is tracked per action, severity and successful sink,
+  so a warning cannot suppress a critical escalation and a failed pager is
+  retried even if another sink succeeded. Raising custom sinks are isolated so
+  they cannot stop subsequent sinks. A sink registered at multiple levels is
+  delivered at most once per event; distinct sinks that share a name keep
+  separate result keys.
+- **Complete generic webhook records.** The generic JSON payload now includes
+  threshold, strategy and optional detail alongside score, surprise, reasons
+  and event time, matching the documented record contract.
+- **Webhook configuration fails early and safely.** Require an absolute
+  HTTP(S) URL with a host, reject embedded credentials and invalid ports,
+  and require a positive finite timeout. Request construction errors are
+  reported as failed delivery instead of escaping the sink contract.
+- **History retention limits apply consistently.** A cap of zero now means
+  retaining no records (rather than exploiting Python's `[-0:]` slice), the
+  configured cap is applied when an existing ledger is loaded and written back
+  to disk immediately, and negative, fractional or boolean caps are rejected.
+  Persistence creates missing parent directories and no-retention mode avoids
+  rewriting an empty ledger on every event.
+- **Persistence creates parent directories consistently.** Saving the
+  agent brain, anomaly history, or recurrence ledger to a new subdirectory no
+  longer fails just because the parent path does not yet exist.
+- **Recurrence ring rejects stale out-of-window events.** Late events outside
+  the retained bucket ring no longer leave stale action buckets behind. Invalid
+  window/scoring parameters now fail at construction instead of reaching
+  division-by-zero or nonsensical thresholds.
 - **Sommerzeit in `zeitmuster` (review of !7).** `FunkstilleStrategy` and
   `StundenprofilStrategy` formed their hours from the UTC labels of the
   (monitor-normalized) timestamps. A constant UTC offset maps hour profiles

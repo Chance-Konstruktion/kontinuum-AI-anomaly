@@ -12,9 +12,11 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import urllib.error
 import urllib.request
 from datetime import datetime, timedelta
+from urllib.parse import urlsplit
 from typing import Any, Callable, Dict, List, Optional, Protocol, Tuple
 
 from ._timeutil import as_utc, now_utc
@@ -126,9 +128,25 @@ class WebhookSink:
     def __init__(self, url: str, template: str = "generic", timeout: float = 5.0):
         if template not in ("generic", "slack", "discord"):
             raise ValueError("template must be 'generic', 'slack' or 'discord'")
+        try:
+            parsed = urlsplit(url)
+            if parsed.port is not None and not 1 <= parsed.port <= 65535:
+                raise ValueError("port is outside the valid range")
+        except (TypeError, ValueError):
+            raise ValueError("url must be an absolute http(s) URL with a host") from None
+        if parsed.scheme.lower() not in ("http", "https") or not parsed.hostname:
+            raise ValueError("url must be an absolute http(s) URL with a host")
+        if parsed.username is not None or parsed.password is not None:
+            raise ValueError("webhook URL must not embed credentials")
+        try:
+            timeout_value = float(timeout)
+        except (TypeError, ValueError):
+            raise ValueError("timeout must be a positive finite number") from None
+        if not math.isfinite(timeout_value) or timeout_value <= 0:
+            raise ValueError("timeout must be a positive finite number")
         self.url = url
         self.template = template
-        self.timeout = timeout
+        self.timeout = timeout_value
 
     def _payload(self, rec: AnomalyRecord) -> Dict[str, Any]:
         if self.template == "slack":
@@ -141,9 +159,12 @@ class WebhookSink:
             "action": rec.action,
             "score": rec.score,
             "surprise": rec.surprise,
+            "threshold": rec.threshold,
             "is_novel": rec.is_novel,
             "reasons": rec.reasons,
+            "strategy": rec.strategy,
             "ts": rec.ts,
+            "detail": rec.detail,
         }
 
     def deliver(self, rec: AnomalyRecord) -> bool:
@@ -154,7 +175,9 @@ class WebhookSink:
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 return 200 <= resp.status < 300
-        except (urllib.error.URLError, OSError) as err:
+        except (urllib.error.URLError, OSError, ValueError) as err:
+            # Invalid endpoint/request construction is a failed delivery too;
+            # it must not escape the sink contract and block other sinks.
             logger.warning("WebhookSink delivery failed: %s", err)
             return False
 
@@ -169,8 +192,9 @@ class AlertRouter:
             for anomalies at or above ``min_level`` (one of :data:`LEVELS`), so a
             chatty ``LogSink`` and a page-someone ``WebhookSink`` can share a
             router.
-        cooldown_seconds: Minimum gap between alerts for the *same* action; a
-            repeat inside the window is suppressed. ``0`` disables rate-limiting.
+        cooldown_seconds: Minimum gap per action, severity and successful sink.
+            Failed deliveries remain retryable; a more severe escalation is not
+            suppressed by a lower-level cooldown. Zero disables rate-limiting.
         level_thresholds: Score cut-points passed to :func:`escalation_level`.
     """
 
@@ -187,7 +211,10 @@ class AlertRouter:
         self._entries: List[Tuple[AlertSink, str]] = []
         self.cooldown_seconds = cooldown_seconds
         self.level_thresholds = level_thresholds or DEFAULT_LEVEL_THRESHOLDS
-        self._last_sent: Dict[str, datetime] = {}
+        # Cool down successful repeats per action, severity and sink. A warning
+        # must not suppress a critical escalation, and a failed pager must remain
+        # retryable even if a log sink succeeded for the same event.
+        self._last_sent: Dict[Tuple[str, str, int], datetime] = {}
         self._snoozed: Dict[str, datetime] = {}
         self.suppressed = 0
         for entry in sinks or []:
@@ -235,10 +262,12 @@ class AlertRouter:
             return False
         return True
 
-    def _rate_limited(self, action: str, now: datetime) -> bool:
+    def _rate_limited(
+        self, action: str, level: str, sink: AlertSink, now: datetime
+    ) -> bool:
         if self.cooldown_seconds <= 0:
             return False
-        last = self._last_sent.get(action)
+        last = self._last_sent.get((action, level, id(sink)))
         return last is not None and (now - last) < timedelta(
             seconds=self.cooldown_seconds
         )
@@ -250,20 +279,56 @@ class AlertRouter:
         if self._is_snoozed(rec.action, now):
             self.suppressed += 1
             return {"delivered": False, "reason": "snoozed", "level": level, "sinks": {}}
-        if self._rate_limited(rec.action, now):
-            self.suppressed += 1
-            return {"delivered": False, "reason": "rate_limited", "level": level, "sinks": {}}
         rank = _LEVEL_INDEX[level]
         results: Dict[str, bool] = {}
+        seen_sinks: set[int] = set()
+        eligible = 0
+        rate_limited = 0
         for sink, min_level in self._entries:
-            if rank < _LEVEL_INDEX[min_level]:
+            if rank < _LEVEL_INDEX[min_level] or id(sink) in seen_sinks:
                 continue
-            results[sink.name] = sink.deliver(rec)
+            # Registering one sink at multiple minimum levels expresses
+            # multiple eligibility rules, not a request to deliver duplicates.
+            seen_sinks.add(id(sink))
+            key = sink.name
+            if key in results:
+                suffix = 2
+                while f"{key}#{suffix}" in results:
+                    suffix += 1
+                key = f"{key}#{suffix}"
+            eligible += 1
+            if self._rate_limited(rec.action, level, sink, now):
+                results[key] = False
+                rate_limited += 1
+                continue
+            try:
+                delivered_to_sink = bool(sink.deliver(rec))
+            except Exception:
+                # A plugin-provided sink must not prevent other sinks from
+                # receiving a safety-relevant alert.
+                logger.exception("Alert sink %s raised during delivery", sink.name)
+                delivered_to_sink = False
+            results[key] = delivered_to_sink
+            if delivered_to_sink:
+                self._last_sent[(rec.action, level, id(sink))] = now
         if not results:
-            # Nothing went out, so nothing may start the cooldown clock. Arming
-            # it here used to swallow the *next* alert for this action: a
-            # below-threshold info event would rate-limit a genuine critical one
-            # arriving inside the window, even though no sink had ever fired.
             return {"delivered": False, "reason": "below_sink_levels", "level": level, "sinks": {}}
-        self._last_sent[rec.action] = now
+        delivered = any(results.values())
+        if not delivered:
+            if rate_limited == eligible:
+                self.suppressed += 1
+                return {
+                    "delivered": False,
+                    "reason": "rate_limited",
+                    "level": level,
+                    "sinks": results,
+                }
+            # Delivery failures do not arm a cooldown; only successfully
+            # delivered (action, level, sink) tuples are rate-limited.
+            return {
+                "delivered": False,
+                "reason": "delivery_failed",
+                "level": level,
+                "sinks": results,
+            }
         return {"delivered": True, "level": level, "sinks": results}

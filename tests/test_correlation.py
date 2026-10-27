@@ -1,5 +1,9 @@
 """Cross-stream correlation: temporal co-occurrence and multi-agent clusters."""
 from datetime import datetime, timedelta, timezone
+import os
+from pathlib import Path
+
+import pytest
 
 from kontinuum_ai_anomaly import (
     CorrelatedEvent,
@@ -85,3 +89,51 @@ def test_multi_agent_watch_reuses_one_watch_per_agent():
 def test_correlated_event_is_hashable_frozen():
     ev = CorrelatedEvent(agent_id="a", action="x", score=0.5, ts=_at(0))
     assert ev in {ev}
+
+
+
+def test_cross_stream_zero_event_cap_retains_nothing():
+    c = CrossStreamCorrelator(max_events=0)
+    event = c.record("agent-a", "boom", 0.9, ts=_at(0))
+
+    assert event.action == "boom"
+    assert c._events == []
+    assert c.correlated_with(event) == []
+    assert c.clusters() == []
+
+
+@pytest.mark.parametrize("max_events", [-1, 1.5, True])
+def test_cross_stream_rejects_invalid_event_caps(max_events):
+    with pytest.raises(ValueError, match="max_events must be a non-negative integer"):
+        CrossStreamCorrelator(max_events=max_events)
+
+
+@pytest.mark.parametrize("window_seconds", [-1, float("inf"), float("nan")])
+def test_cross_stream_rejects_invalid_windows(window_seconds):
+    with pytest.raises(ValueError, match="window_seconds must be a non-negative finite"):
+        CrossStreamCorrelator(window_seconds=window_seconds)
+
+
+def test_cluster_min_agents_must_be_positive():
+    with pytest.raises(ValueError, match="min_agents must be a positive integer"):
+        CrossStreamCorrelator().clusters(min_agents=0)
+
+
+@pytest.mark.parametrize("agent_id", ["../escape", "..", "/tmp/outside", r"..\\escape"])
+def test_multi_agent_persistence_paths_cannot_escape_base(tmp_path, agent_id):
+    root = tmp_path / "brain"
+    watch = MultiAgentWatch(brain_dir=str(root), history_dir=str(root / "history"))
+
+    brain_path = watch._path(str(root), agent_id)
+    history_path = watch._path(str(root / "history"), agent_id)
+    brain_root = str(root.resolve())
+    history_root = str((root / "history").resolve())
+
+    assert os.path.commonpath((brain_root, str(Path(brain_path).resolve()))) == brain_root
+    assert os.path.commonpath((history_root, str(Path(history_path).resolve()))) == history_root
+
+
+def test_multi_agent_safe_ids_keep_backward_compatible_filenames(tmp_path):
+    root = tmp_path / "brain"
+    watch = MultiAgentWatch(brain_dir=str(root))
+    assert watch._path(str(root), "agent-1") == str(root / "agent-1.json")
