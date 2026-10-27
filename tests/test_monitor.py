@@ -129,3 +129,15 @@ def test_engine_skips_the_parts_it_never_reads():
     assert getattr(m.engine, "claustrum", None) is None
     assert getattr(m.engine, "association_cortex", None) is None
     assert m.observe("plan")["is_novel"] is True
+
+
+def test_persistence_creates_missing_parent_directory(tmp_path):
+    path = tmp_path / "new-subdir" / "brain.json"
+    m = AgentMonitor(persist_path=str(path), agent_id="bot")
+    m.observe("deploy")
+    m.save()
+
+    assert path.exists()
+    restored = AgentMonitor(persist_path=str(path))
+    assert restored.agent_id == "bot"
+    assert restored.observe("deploy")["is_novel"] is False
