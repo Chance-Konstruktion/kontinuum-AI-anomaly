@@ -169,8 +169,11 @@ class MultiAgentWatch:
         strategy: Optional scoring strategy applied to every agent's watch.
         router: Optional shared alert router applied to every agent's watch.
         brain_dir / history_dir: If given, per-agent persistence files are
-            created as ``{dir}/{agent_id}.json`` so each agent's model/ledger is
-            saved separately.
+            created so each agent's model/ledger is saved separately. IDs made
+            only of ``[A-Za-z0-9_.-]`` (not ``.``/``..``) map to
+            ``{dir}/{agent_id}.json``; any other ID (e.g. ``Küche``,
+            ``agent:1``) is stored as ``{dir}/{stem}_{sha256[:16]}.json``,
+            where ``stem`` is the ID with unsafe runs replaced by ``_``.
     """
 
     def __init__(
