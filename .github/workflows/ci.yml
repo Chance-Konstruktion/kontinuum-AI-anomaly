@@ -13,11 +13,11 @@ concurrency:
 jobs:
   test:
     name: py${{ matrix.python-version }} · core ${{ matrix.core-version }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
         # Two core versions on purpose: 0.6.0 predates get_diagnostics() and so
         # exercises the hasattr-guard / graceful-degradation path, while 0.6.3 is
         # the modern path this package pins. The version-matrix skew is exactly
@@ -25,13 +25,13 @@ jobs:
         # both paths permanently green.
         core-version: ["0.6.0", "0.6.3"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # setuptools-scm derives the version from tags/history.
           fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -57,13 +57,13 @@ jobs:
 
   lint:
     name: lint + types
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           # A recent interpreter on purpose: current mypy refuses to *analyse*
           # for 3.9 ("must be 3.10 or higher"), so pinning the lint job to the
@@ -90,12 +90,12 @@ jobs:
 
   build:
     name: build sdist + wheel
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Build
