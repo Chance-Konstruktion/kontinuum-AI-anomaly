@@ -6,6 +6,14 @@ follows [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- **Hashed persistence file names in `correlation.py`:** agent IDs outside
+  `[A-Za-z0-9_.-]` (e.g. `Küche`, `agent:1`) are now stored as
+  `<stem>_<sha256[:16]>.json`. Such agents lose their previous learning state
+  on upgrade; the old file stays in place (it is not read or deleted) and can
+  be removed by hand. IDs inside the safe set keep their file name.
+
 ### Added
 
 - **The dream's seed travels through the layers** (kontinuum-core 0.7.1,
